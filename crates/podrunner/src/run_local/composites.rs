@@ -18,7 +18,8 @@ pub(super) fn local_uses(w: &pod_actions_workflow::Workflow, base: &Path) -> Res
     Ok(remote_uses(&local_steps(w, base)?))
 }
 
-/// Each remote `uses:` of `steps`, once.
+/// Each remote `uses:` of `steps`, once. A `$/PATH` is in it: the caller
+/// pins the tree of the run for it (T-729).
 fn remote_uses(steps: &[(String, Node)]) -> Vec<String> {
     let mut out = Vec::new();
     for (_, s) in steps {
@@ -94,7 +95,7 @@ fn local_steps(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<(S
         .jobs
         .iter()
         .flat_map(|j| j.steps.iter().filter_map(|s| s.uses.clone()))
-        .filter(|u| u.starts_with("./"))
+        .filter(|u| u.starts_with("./") || podrunner_local::store::is_self(u))
         .map(|u| (u, 1))
         .collect();
     steps_from(queue, base)
@@ -106,7 +107,15 @@ fn local_steps(w: &pod_actions_workflow::Workflow, base: &Path) -> Result<Vec<(S
 fn steps_from(mut queue: Vec<(String, usize)>, base: &Path) -> Result<Vec<(String, Node)>, String> {
     let (mut seen, mut out) = (BTreeSet::new(), Vec::new());
     while let Some((path, depth)) = queue.pop() {
-        if !seen.insert(path.clone()) {
+        // `$/PATH` names the repository of the run at its commit: the tree,
+        // as `./PATH` (T-729).
+        let rel = match podrunner_local::store::self_path(&path) {
+            // The job message refuses `$/PATH@REF` with its line.
+            Some(Err(_)) => continue,
+            Some(Ok(p)) => p.to_string(),
+            None => path.trim_start_matches("./").trim_end_matches('/').to_string(),
+        };
+        if !seen.insert(rel.clone()) {
             continue;
         }
         if depth > DEPTH {
@@ -114,8 +123,8 @@ fn steps_from(mut queue: Vec<(String, usize)>, base: &Path) -> Result<Vec<(Strin
         }
         // A local action stays in the tree: no `..`, and no link that leads
         // out of it (#243).
-        let dir = base.join(&path);
-        if std::path::Path::new(&path).components().any(|c| c == std::path::Component::ParentDir) {
+        let dir = base.join(&rel);
+        if std::path::Path::new(&rel).components().any(|c| c == std::path::Component::ParentDir) {
             return Err(format!("`uses: {path}`: a local action is a path in the tree, with no `..`"));
         }
         let root = base.canonicalize().unwrap_or_else(|_| base.to_path_buf());
@@ -134,7 +143,7 @@ fn steps_from(mut queue: Vec<(String, usize)>, base: &Path) -> Result<Vec<(Strin
         };
         for s in composite_steps(&text).map_err(|e| format!("the action.yml of `uses: {path}`: {e}"))? {
             if let Some(Kind::String(u)) = s.get("uses").map(|n| &n.kind)
-                && u.starts_with("./")
+                && (u.starts_with("./") || podrunner_local::store::is_self(u))
             {
                 queue.push((u.clone(), depth + 1));
             }
@@ -324,5 +333,30 @@ mod tests {
         assert_eq!(super::local_uses(&w, &dir).unwrap(), ["o/rem@v1"]);
         assert_eq!(super::local_checkouts(&w, &dir).unwrap().len(), 2);
         assert_eq!(super::local_trees(&w, &dir, "me/self").unwrap(), ["o/second@V1"]);
+    }
+
+    /// T-729: `$/PATH` in a step and in a local action names a local action
+    /// of the tree: its remote `uses:` and its checkouts count; a `$/PATH`
+    /// stays in the list for the caller, and `$/PATH@REF` is not read.
+    #[test]
+    fn a_uses_of_the_repository_of_the_run_is_a_local_action() {
+        let dir = crate::scratch::Scratch::new("composite-self");
+        let comp = |p: &str, steps: &str| {
+            std::fs::create_dir_all(dir.join(p)).unwrap();
+            std::fs::write(dir.join(p).join("action.yml"), format!("runs:\n  using: composite\n  steps:\n{steps}"))
+                .unwrap();
+        };
+        comp("a", "    - uses: $/b\n    - uses: o/rem@v1\n");
+        comp("b", "    - uses: o/other@v2\n    - uses: actions/checkout@v4\n    - uses: ./a\n");
+        comp("c", "    - uses: o/never@v1\n");
+        let text = "on: push\njobs:\n  j:\n    runs-on: x\n    steps: [{uses: $/a}, {uses: '$/c@v1'}]\n";
+        let w = pod_actions_workflow::parse(text).unwrap().workflow;
+        let mut got = super::local_uses(&w, &dir).unwrap();
+        got.sort();
+        assert_eq!(got, ["$/b", "o/other@v2", "o/rem@v1"]);
+        assert_eq!(super::local_checkouts(&w, &dir).unwrap().len(), 1);
+        let up = "on: push\njobs:\n  j:\n    runs-on: x\n    steps: [{uses: $/../x}]\n";
+        let up = super::local_uses(&pod_actions_workflow::parse(up).unwrap().workflow, &dir).unwrap_err();
+        assert!(up.contains("no `..`"), "{up}");
     }
 }

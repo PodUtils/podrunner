@@ -195,6 +195,44 @@ fn actions_checkout_by_any_case_is_the_stand_in() {
     }
 }
 
+/// T-729: `uses: $/PATH` is the action of the repository of the workflow at
+/// its commit, as the runner resolves it; the `job` context names that
+/// workflow; `$/PATH@REF` is refused with its line.
+#[test]
+fn a_uses_of_the_repository_of_the_workflow_is_at_its_commit() {
+    let sha = "c".repeat(40);
+    let at = "o/app/.github/workflows/ci.yml@refs/heads/main";
+    let github = XValue::from_json(&format!(
+        "{{\"repository\":\"o/app\",\"workflow_ref\":\"{at}\",\"workflow_sha\":\"{sha}\"}}"
+    ))
+    .unwrap();
+    let job = |steps: &str| {
+        let text = format!("on: push\njobs:\n  build:\n    runs-on: x\n    steps:\n{steps}");
+        let base = Base { github: github.clone(), ..Base::default() };
+        let mut s = LocalSource::new("l", &text, base, "x86_64", Box::new(|_, _| unreachable!())).unwrap();
+        s.next(10, Duration::ZERO).unwrap();
+        s.broker_job(&JobId::new("build.0").unwrap())
+    };
+    let b = job("      - uses: $/acts/a\n      - uses: $/\n").unwrap();
+    let steps = b.overrides["steps"].as_array().unwrap();
+    let want =
+        json!({ "type": "repository", "repositoryType": "GitHub", "name": "o/app", "ref": sha, "path": "acts/a" });
+    assert_eq!(steps[0]["reference"], want);
+    assert_eq!(steps[1]["reference"]["name"], "o/app");
+    assert!(steps[1]["reference"].get("path").is_none(), "{}", steps[1]);
+    assert_eq!(steps[0]["displayName"], "Run $/acts/a");
+    let m = podrunner_broker_fake::message::job_message("http://127.0.0.1:1/", 1, &b);
+    let d = m["contextData"]["job"]["d"].as_array().unwrap();
+    let get = |k: &str| d.iter().find(|e| e["k"] == k).map(|e| e["v"].clone());
+    assert_eq!(get("workflow_repository"), Some(json!("o/app")));
+    assert_eq!(get("workflow_sha"), Some(json!(sha)));
+    assert_eq!(get("workflow_ref"), Some(json!(at)));
+    assert_eq!(get("workflow_file_path"), Some(json!(".github/workflows/ci.yml")));
+    assert_eq!(m["variables"]["actions_self_repository"]["value"], "true");
+    let e = job("      - uses: $/acts/a@v1\n").unwrap_err();
+    assert!(e.contains("line 6") && e.contains("takes no @REF"), "{e}");
+}
+
 #[test]
 fn a_pinned_container_services_and_a_docker_step_go_into_the_message() {
     let img = format!("alpine@sha256:{}", "c".repeat(64));

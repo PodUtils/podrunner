@@ -193,3 +193,37 @@ fn a_checkout_by_any_case_gets_the_stand_in() {
     let lock = std::fs::read_to_string(repo.join("podrunner-actions.lock")).unwrap_or_default();
     assert!(!lock.to_ascii_lowercase().contains("actions/checkout"), "{lock}");
 }
+
+/// T-729: `uses: $/PATH` names an action of the repository of the workflow
+/// at its commit: the tree of the run. A step and a composite action of
+/// that tree with `$/PATH` run it with no checkout, and the remote `uses:`
+/// of such an action is pinned. In a composite action of the store, the
+/// run refuses `$/PATH` with the fix.
+#[test]
+#[ignore]
+fn a_uses_of_the_repository_of_the_workflow_runs_its_tree() {
+    let scratch = scratch::Scratch::new("store-self-uses");
+    let co = "on: push\njobs:\n  s:\n    runs-on: x\n    steps:\n      - id: a\n        uses: $/acts/a\n      \
+              - uses: $/acts/b\n      - run: test \"${{ steps.a.outputs.x }}\" = a-b && test \"$(cat b.txt)\" = b \
+              && test \"$(cat rem.txt)\" = rem && test ! -e a.txt\n";
+    let a = "outputs:\n  x:\n    value: ${{ steps.n.outputs.x }}\nruns:\n  using: composite\n  steps:\n    \
+             - uses: $/acts/b\n    - uses: o/rem@v1\n    - id: n\n      shell: bash\n      \
+             run: echo \"x=a-$(cat \"$GITHUB_WORKSPACE/b.txt\")\" >> \"$GITHUB_OUTPUT\"\n";
+    let b = "runs:\n  using: composite\n  steps:\n    - shell: bash\n      \
+             run: echo b > \"$GITHUB_WORKSPACE/b.txt\"\n";
+    let repo = repo_with(&scratch, &[("co.yml", co), ("acts/a/action.yml", a), ("acts/b/action.yml", b)]);
+    let rem = "runs:\n  using: composite\n  steps:\n    - shell: bash\n      \
+               run: echo rem > \"$GITHUB_WORKSPACE/rem.txt\"\n";
+    let mut local = vec![format!("o/rem@v1={}", put(&scratch, "rem", "action.yml", rem))];
+    let (out, text) = run(&scratch, &repo, &local);
+    assert_eq!(out.code, 0, "{}{}\nthe logs:\n{text}", out.stdout, out.stderr);
+    assert!(out.stdout.lines().any(|l| l == "ok      s"), "{}", out.stdout);
+    // An action of the store with `$/PATH`: the run stops before a job.
+    let sact = "runs:\n  using: composite\n  steps:\n    - uses: $/x\n";
+    local.push(format!("o/sact@v1={}", put(&scratch, "sact", "action.yml", sact)));
+    std::fs::write(repo.join("co.yml"), "on: push\njobs:\n  s:\n    runs-on: x\n    steps: [{uses: o/sact@v1}]\n")
+        .unwrap();
+    let (out, _) = run(&scratch, &repo, &local);
+    assert!(out.code != 0 && !out.stdout.contains("ok "), "{}{}", out.stdout, out.stderr);
+    assert!(out.stderr.contains("`uses: $/x`") && out.stderr.contains("fix:"), "{}", out.stderr);
+}

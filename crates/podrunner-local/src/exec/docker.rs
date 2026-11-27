@@ -100,7 +100,11 @@ fn docker_of_kind(uses: &str, src: &Sources, depth: u8, out: &mut Vec<String>, b
                     match u.strip_prefix("docker://") {
                         Some(_) if !build => out.push(u.clone()),
                         Some(_) => {}
-                        None => docker_of_kind(u, src, depth + 1, out, build),
+                        // `$/PATH`: the repository of this action (T-729).
+                        None => match crate::store::self_of(u, uses) {
+                            Some(at) => docker_of_kind(&at, src, depth + 1, out, build),
+                            None => docker_of_kind(u, src, depth + 1, out, build),
+                        },
                     }
                 }
             }
@@ -222,6 +226,18 @@ mod tests {
         let src2 = Sources { store: Some(&dir), pins: &pins2, tree: None };
         assert!(build_refusal(&job, &src2).is_none(), "an image action needs no build");
         assert!(refusal(&job, &src2).is_some(), "a runner directory runs neither");
+        // T-729: `$/PATH` in a composite names the repository of that action.
+        let docker = "runs:\n  using: docker\n  image: Dockerfile\n";
+        put(
+            &dir,
+            "o/s",
+            "c5",
+            &[("action.yml", "runs:\n  using: composite\n  steps: [{uses: $/dock}]\n"), ("dock/action.yml", docker)],
+        );
+        let pins3: BTreeMap<String, String> = [("o/s@v5".to_string(), "c5".to_string())].into();
+        job.overrides.insert("steps".into(), serde_json::json!([step("o/s", "v5", None)]));
+        let e = refusal(&job, &Sources { store: Some(&dir), pins: &pins3, tree: None }).expect("a Docker action by $/");
+        assert!(e.contains("o/s/dock@v5"), "{e}");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

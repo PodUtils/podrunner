@@ -224,6 +224,9 @@ struct RunDefaults<'a> {
     pins: &'a BTreeMap<String, String>,
     /// The repository of the run: its checkout is the local tree (T-133).
     self_repo: &'a str,
+    /// The repository and the commit of the workflow of the job: a
+    /// `uses: $/PATH` names an action of it (T-729).
+    workflow: (&'a str, &'a str),
 }
 
 /// One step as the runner reads it: a script action.
@@ -291,10 +294,13 @@ fn step(
             if let (true, Some(refusal)) = (uses.starts_with("docker://"), d.pins.get(REFUSE_CONTAINERS)) {
                 return Err(format!("line {line}: `uses: {uses}`: {refusal}"));
             }
-            let pinned_uses = match uses.strip_prefix("docker://") {
-                Some(image) => format!("docker://{}", pin_image(image, d.pins)),
-                None => uses.clone(),
-            };
+            // `$/PATH` (T-729): the reference that the runner makes of it.
+            let pinned_uses =
+                match (crate::store::self_uses(uses, d.workflow.0, d.workflow.1), uses.strip_prefix("docker://")) {
+                    (Some(r), _) => r.map_err(|e| format!("line {line}: {e}"))?,
+                    (None, Some(image)) => format!("docker://{}", pin_image(image, d.pins)),
+                    (None, None) => uses.clone(),
+                };
             let (reference, base) = action(&pinned_uses, line)?;
             let with = match s.with.as_ref().map(|n| &n.kind) {
                 None => Vec::new(),
@@ -347,9 +353,43 @@ fn step(
     Ok(v)
 }
 
+/// The workflow of a job: `OWNER/REPO/PATH@REF` and its commit. The runner
+/// resolves `uses: $/PATH` against it (T-729).
+pub struct Origin<'a> {
+    pub workflow_ref: &'a str,
+    pub sha: &'a str,
+}
+
+impl Origin<'_> {
+    /// `OWNER/REPO` and `PATH` of the workflow.
+    fn parts(&self) -> (String, &str) {
+        let file = self.workflow_ref.rsplit_once('@').map_or(self.workflow_ref, |(f, _)| f);
+        let mut parts = file.splitn(3, '/');
+        match (parts.next(), parts.next()) {
+            (Some(o), Some(r)) => (format!("{o}/{r}"), parts.next().unwrap_or("")),
+            _ => (String::new(), ""),
+        }
+    }
+
+    /// The `job` context of GitHub: the runner reads `workflow_repository`
+    /// and `workflow_sha` for `$/PATH` in a local composite action.
+    fn context(&self) -> XValue {
+        let (repo, path) = self.parts();
+        let s = |v: &str| XValue::String(v.into());
+        let all = [
+            ("workflow_ref", s(self.workflow_ref)),
+            ("workflow_sha", s(self.sha)),
+            ("workflow_repository", s(&repo)),
+            ("workflow_file_path", s(path)),
+        ];
+        XValue::object(all.into_iter().filter(|(_, v)| v.as_str().is_some_and(|v| !v.is_empty())))
+    }
+}
+
 /// The job of the fake broker for `cell` of `workflow`. `github`, `vars`
 /// and `inputs` are the contexts of the run; the entries of `github` join
 /// the canned ones of the broker, so `podrunner_broker` of the broker stays.
+/// `origin` is the workflow of the job.
 pub fn broker_job(
     workflow: &pod_actions_workflow::Workflow,
     cell: &Cell,
@@ -357,6 +397,7 @@ pub fn broker_job(
     vars: &XValue,
     inputs: &XValue,
     pins: &BTreeMap<String, String>,
+    origin: &Origin,
 ) -> Result<Job, String> {
     let job: &WorkflowJob = workflow.job(&cell.job).ok_or_else(|| format!("no job {}", cell.job))?;
     if let Some(uses) = &job.uses {
@@ -390,6 +431,7 @@ pub fn broker_job(
     }
     let wd = workflow.defaults.as_ref();
     let jd = job.defaults.as_ref();
+    let origin_repo = origin.parts().0;
     let defaults = RunDefaults {
         shell: jd.and_then(|d| d.shell.as_deref()).or(wd.and_then(|d| d.shell.as_deref())),
         working_directory: jd
@@ -397,6 +439,7 @@ pub fn broker_job(
             .or(wd.and_then(|d| d.working_directory.as_deref())),
         pins,
         self_repo: github.get("repository").and_then(XValue::as_str).unwrap_or(""),
+        workflow: (&origin_repo, origin.sha),
     };
     let mut unnamed = BTreeMap::new();
     let steps: Vec<Value> =
@@ -413,6 +456,7 @@ pub fn broker_job(
     }
     context.insert("inputs".into(), context_data(inputs));
     context.insert("github".into(), context_data(github));
+    context.insert("job".into(), context_data(&origin.context()));
     let mut b = Job::scripts(&i.name, &[]);
     b.overrides.insert("steps".into(), Value::Array(steps));
     b.overrides.insert("environmentVariables".into(), Value::Array(environment));

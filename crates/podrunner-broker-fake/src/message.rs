@@ -223,6 +223,11 @@ pub fn job_message_with(base: &str, request: u64, job: &Job, token: &str, hold: 
             // The runner gives ACTIONS_CACHE_SERVICE_V2 to the steps: the
             // cache client calls the CacheService of this broker (T-120).
             "actions_uses_cache_service_v2": { "value": "true" },
+            // The runner resolves `uses: $/PATH` only with this flag
+            // (`Features.SelfRepository`): in a composite action, to the
+            // repository and the ref of the action, or of
+            // `job.workflow_repository` and `job.workflow_sha` (T-729).
+            "actions_self_repository": { "value": "true" },
             // GitHub runs a `node20` action on Node 24 (the flag of the
             // runner); ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION opts out.
             // Node 20 ignores NODE_USE_ENV_PROXY (T-299).

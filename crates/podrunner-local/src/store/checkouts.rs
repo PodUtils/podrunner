@@ -49,7 +49,10 @@ pub fn action_checkouts(uses: &[String], dir: &Path, commits: &BTreeMap<String, 
                 if !out.locals.iter().any(|(p, _)| p == inner) {
                     out.locals.push((inner.clone(), depth + 1));
                 }
-            } else if !inner.starts_with("docker://") {
+            } else if let Some(at) = super::self_of(inner, &u) {
+                // `$/PATH`: the repository of this action at its ref (T-729).
+                queue.push_back((at, depth + 1));
+            } else if !inner.starts_with("docker://") && !super::is_self(inner) {
                 queue.push_back((inner.clone(), depth + 1));
             }
         }

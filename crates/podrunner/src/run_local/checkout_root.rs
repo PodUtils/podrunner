@@ -66,6 +66,15 @@ fn uses_checkout(text: &str, root: Option<&Path>, depth: usize) -> Option<bool> 
         return Some(true);
     }
     let p = pod_actions_workflow::parse(text).ok()?;
+    // `uses: $/PATH` names an action of the tree (T-729).
+    if p.workflow
+        .jobs
+        .iter()
+        .flat_map(|j| &j.steps)
+        .any(|s| s.uses.as_deref().is_some_and(podrunner_local::store::is_self))
+    {
+        return Some(true);
+    }
     let mut maybe = None;
     for uses in p.workflow.jobs.iter().filter_map(|j| j.uses.as_deref()) {
         let found = match uses.strip_prefix("./") {
@@ -106,13 +115,13 @@ pub(in crate::run_local) fn default_checkout(mut a: Args) -> Result<Args, String
         }
         let cwd = std::env::current_dir().map_err(|e| format!("the current directory: {e}"))?;
         return Err(format!(
-            "{}: the workflow uses actions/checkout, and {} is in no git tree: give --checkout DIR, the tree of the project",
+            "{}: the workflow uses actions/checkout or `$/PATH`, and {} is in no git tree: give --checkout DIR, the tree of the project",
             a.file.display(),
             cwd.display()
         ));
     };
     let why = if sure {
-        "(or a workflow that it calls) uses actions/checkout"
+        "(or a workflow that it calls) uses actions/checkout or `$/PATH`"
     } else {
         "calls a workflow of another repository"
     };
@@ -142,6 +151,9 @@ mod tests {
         assert_eq!(super::uses_checkout(&call("./.github/workflows/b.yml"), None, 0), None, "no tree");
         // T-726: by any case of the owner and the name.
         let step = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{uses: Actions/Checkout@v4}]\n";
+        assert_eq!(super::uses_checkout(step, None, 0), Some(true));
+        // T-729: an action of the tree by `$/PATH`.
+        let step = "on: push\njobs:\n  a:\n    runs-on: x\n    steps: [{uses: $/act}]\n";
         assert_eq!(super::uses_checkout(step, None, 0), Some(true));
         let _ = std::fs::remove_dir_all(&root);
     }

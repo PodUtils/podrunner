@@ -213,7 +213,7 @@ pub fn run(args: &[String]) -> Out {
     let image_source = pull.as_ref().map(|p| p as &dyn podrunner_local::images::ImageSource);
     let image_source = image_source.filter(|_| !refused.contains_key(podrunner_local::message::REFUSE_CONTAINERS));
     let no_services = refused.contains_key(podrunner_local::message::REFUSE_SERVICES);
-    let pinned = actions::pin(&a, &text, mode, &facts.repository, image_source, no_services);
+    let pinned = actions::pin(&a, &text, mode, &facts.repository, &facts.sha, image_source, no_services);
     let (store, mut pins, note, in_store) = match pinned {
         Ok(Some(p)) => (p.dir.or_else(|| a.actions.clone()), p.commits, p.note, p.checkouts),
         Ok(None) => (a.actions.clone(), Default::default(), String::new(), Vec::new()),

@@ -47,12 +47,14 @@ pub(super) struct Pinned {
 }
 
 /// The actions of the run, or `None` when the workflow names no action of a
-/// repository.
+/// repository. `self_sha` is the commit of the workflow
+/// (`github.workflow_sha`).
 pub(super) fn pin(
     a: &Args,
     text: &str,
     mode: Mode,
     self_repo: &str,
+    self_sha: &str,
     images: Option<&dyn ImageSource>,
     no_services: bool,
 ) -> Result<Option<Pinned>, String> {
@@ -73,7 +75,17 @@ pub(super) fn pin(
             }
         }
     }
+    // `uses: $/PATH` (T-729): an action of the repository of the workflow at
+    // its commit, which is the tree of the run. The run pins that tree as
+    // one reference, as `--local-repository`, and the broker serves it.
+    let self_key = format!("{self_repo}@{self_sha}");
+    let is_self = |u: &String| podrunner_local::store::is_self(u);
+    let self_tree = uses.iter().any(is_self);
+    uses.retain(|u| !is_self(u));
     let mut trees = workflow_trees(&workflow, self_repo).map_err(s)?;
+    if self_tree {
+        trees.push(self_key.clone());
+    }
     for w in &called {
         for t in workflow_trees(w, self_repo).map_err(s)? {
             if !trees.contains(&t) {
@@ -145,10 +157,14 @@ pub(super) fn pin(
         // When `--local-repository` serves each reference of the file, no
         // forge is asked: the run opens no relay, and a reference that a
         // local action names comes from the lock and the store (T-211).
+        let mut dirs = a.local_repos.clone();
+        if !dirs.iter().any(|(k, _)| *k == self_key) {
+            dirs.push((self_key.clone(), tree.clone()));
+        }
         let local = |u: &String| {
             u.rsplit_once('@').is_some_and(|(left, r)| {
                 let repo: Vec<&str> = left.splitn(3, '/').take(2).collect();
-                a.local_repos.iter().any(|(k, _)| *k == format!("{}@{r}", repo.join("/")))
+                dirs.iter().any(|(k, _)| *k == format!("{}@{r}", repo.join("/")))
             })
         };
         // A run whose references are each local asks no forge first; a
@@ -167,12 +183,13 @@ pub(super) fn pin(
             };
             let mut git = Git::new(base.clone(), std::env::temp_dir());
             git.proxy = fetch.as_ref().map(|f| f.proxy.clone());
-            let forge = Local::new(a.local_repos.iter().cloned().collect(), &git);
+            let forge = Local::new(dirs.iter().cloned().collect(), &git);
             // The checkouts of other repositories in the composite actions
             // of the store (T-718): the actions are in the store after
             // `resolve`. A local action that one names (T-725) can name more
             // actions: resolve again until no new one comes.
             let mut uses = uses.clone();
+            let mut self_more = false;
             let (r, found) = loop {
                 let r = resolve(&uses, &lock, &store, &forge, mode, &name)?;
                 let mut found = podrunner_local::store::checkouts::action_checkouts(&uses, &store.dir, &r.commits);
@@ -181,7 +198,8 @@ pub(super) fn pin(
                     podrunner_local::store::Error::Forge { repo: String::new(), reason }
                 })?;
                 found.checkouts.extend(local);
-                let more: Vec<String> = more.into_iter().filter(|u| !uses.contains(u)).collect();
+                self_more |= more.iter().any(is_self);
+                let more: Vec<String> = more.into_iter().filter(|u| !is_self(u) && !uses.contains(u)).collect();
                 if more.is_empty() {
                     break (r, found.checkouts);
                 }
@@ -193,6 +211,9 @@ pub(super) fn pin(
                 uses.extend(more);
             };
             let mut all = trees.clone();
+            if self_more && !all.contains(&self_key) {
+                all.push(self_key.clone());
+            }
             // A name with `..` gets no tree (#261): the stand-in fails its step.
             for t in super::composites::trees_of(&found, self_repo) {
                 if !all.contains(&t) && podrunner_local::store::repo_ok(&t).is_ok() {
@@ -256,6 +277,11 @@ fn with_fix(e: &podrunner_local::store::Error, mode: Mode) -> String {
         }
         (Error::NotLocked { .. } | Error::NotStored { .. }, Mode::Offline) => {
             "; run with no --offline to fetch it, or serve it with --local-repository OWNER/REPO@REF=DIR"
+        }
+        // `$/PATH` in an action of the store names the repository of that
+        // action; `pod-actions-store` does not follow it (T-729).
+        (Error::Uses { uses }, _) if podrunner_local::store::is_self(uses) => {
+            "; an action of the store names an action of its own repository by `$/PATH`, and the run cannot pin the actions of that action yet; fix: use a version of the action with no `$/PATH`, or copy the action into the tree of the run and give it as `uses: ./PATH`"
         }
         _ => "",
     };
@@ -364,6 +390,18 @@ fn on_local_network(host: &str) -> bool {
 
 #[cfg(test)]
 mod fix_tests {
+    /// T-729: `$/PATH` in an action of the store is refused with the fix;
+    /// another bad `uses:` gets no such fix.
+    #[test]
+    fn a_uses_of_its_own_repository_in_an_action_of_the_store_has_a_fix() {
+        let mode = podrunner_local::store::Mode::Offline;
+        let e = podrunner_local::store::Error::Uses { uses: "$/x".into() };
+        let t = super::with_fix(&e, mode);
+        assert!(t.starts_with("`uses: $/x`") && t.contains("fix: use a version of the action"), "{t}");
+        let e = podrunner_local::store::Error::Uses { uses: "o".into() };
+        assert!(!super::with_fix(&e, mode).contains("fix:"));
+    }
+
     /// T-339 item 15: a login prompt of git names a missing repository.
     #[test]
     fn a_login_prompt_names_a_missing_repository() {

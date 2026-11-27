@@ -311,7 +311,14 @@ impl LocalSource {
         let (w, id) = self.job_of(cell);
         let called = Cell { job: id.to_string(), ..cell.clone() };
         let inputs = if self.calls.get(&cell.job).is_some() { &cell.instance.inputs } else { &self.inputs };
-        let mut b = message::broker_job(w, &called, &self.github, &vars, inputs, &self.pins)?;
+        // The workflow of the job and its commit (T-434): a called workflow
+        // of another repository is at the commit of its pin (T-729).
+        let g = |k: &str| self.github.as_object().and_then(|o| o.get(k)).and_then(XValue::as_str).unwrap_or("");
+        let workflow_of = self.calls.job_workflow(&cell.job, g("repository"), g("ref"), g("sha"), &self.pins);
+        let (workflow_ref, sha) =
+            workflow_of.clone().unwrap_or_else(|| (g("workflow_ref").into(), g("workflow_sha").into()));
+        let origin = message::Origin { workflow_ref: &workflow_ref, sha: &sha };
+        let mut b = message::broker_job(w, &called, &self.github, &vars, inputs, &self.pins, &origin)?;
         b.secrets = calls::values(&cell.instance.secrets, &self.secrets);
         if let Some(e) = &environment {
             for (k, v) in &e.secrets {
@@ -335,9 +342,7 @@ impl LocalSource {
         let empty = self.token.as_deref() == Some("");
         b.token = if none && !empty { None } else { self.token.clone() };
         if ask {
-            let g = |k: &str| self.github.as_object().and_then(|o| o.get(k)).and_then(XValue::as_str).unwrap_or("");
-            let called = self.calls.job_workflow(&cell.job, g("repository"), g("ref"), g("sha"), &self.pins);
-            b.id_token = Some(oidc::claims(&self.github, &cell.job, self.environment_of(job)?.as_deref(), called));
+            b.id_token = Some(oidc::claims(&self.github, &cell.job, self.environment_of(job)?.as_deref(), workflow_of));
         }
         Ok(b)
     }

@@ -114,3 +114,18 @@ fn a_checkout_by_any_case_in_an_action_of_the_store() {
     let lines: Vec<u32> = got.iter().map(|(_, l, _)| *l).collect();
     assert_eq!(lines, [4, 6]);
 }
+
+/// T-729: `$/PATH` in an action of the store names its repository at its
+/// ref; `$/PATH@REF` names nothing.
+#[test]
+fn a_uses_of_its_own_repository_in_an_action_of_the_store() {
+    let dir = Dir(std::env::temp_dir().join(format!("podrunner-store-self-{}", std::process::id())));
+    let _ = std::fs::remove_dir_all(&dir.0);
+    let d = dir.0.as_path();
+    let a = composite(&["    - uses: $/sub\n", "    - uses: '$/bad@v1'\n"]);
+    put(d, "o/act", &commit(1), &[("action.yml", &a), ("sub/action.yml", &composite(&[&co("ref: v5")]))]);
+    let commits = BTreeMap::from([("o/act@v1".to_string(), commit(1))]);
+    let got = super::action_checkouts(&["o/act@v1".to_string()], d, &commits).checkouts;
+    let names: Vec<(&str, u32)> = got.iter().map(|(u, l, _)| (u.as_str(), *l)).collect();
+    assert_eq!(names, [("o/act/sub@v1", 4)]);
+}
