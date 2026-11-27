@@ -66,7 +66,7 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the run of `user-gate.yml` that proves T-717 and the check
+1. Read the runs of #377: `user-gate.yml` proves T-717 and the check
    `serve:job:engine:microvm` of T-509. Merge the workers of T-715 with T-716, and of T-610 with
    T-603.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
