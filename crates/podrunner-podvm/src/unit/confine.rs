@@ -75,16 +75,17 @@ impl PodvmUnit {
 
     /// The arguments of `run` for the confine layer of a container: read in
     /// the whole image, write in each writable mount, execute in each
-    /// mount (the scripts of the steps, the externals of the runner).
+    /// mount with `exec` (the scripts of the steps, the externals of the
+    /// runner, the cache), not in the CA directory (T-603).
     pub(super) fn container_confine_args(&self, mounts: &[podrunner_unit::ContainerMount]) -> Vec<String> {
         if !self.confine {
             return Vec::new();
         }
-        let list = |ro: bool| {
-            mounts.iter().filter(|m| ro || !m.read_only).map(|m| m.target.as_str()).collect::<Vec<_>>().join(",")
+        let list = |keep: fn(&podrunner_unit::ContainerMount) -> bool| {
+            mounts.iter().filter(|m| keep(m)).map(|m| m.target.as_str()).collect::<Vec<_>>().join(",")
         };
         let mut spec = "read=/".to_string();
-        for (key, paths) in [("write", list(false)), ("exec", list(true))] {
+        for (key, paths) in [("write", list(|m| !m.read_only)), ("exec", list(|m| m.exec))] {
             if !paths.is_empty() {
                 spec.push_str(&format!(";{key}={paths}"));
             }

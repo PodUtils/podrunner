@@ -31,7 +31,10 @@ impl FakeUnit {
         let record: String = spec
             .mounts
             .iter()
-            .map(|m| format!("mount {} {} {}\n", m.source.display(), m.target, if m.read_only { "ro" } else { "rw" }))
+            .map(|m| {
+                let (mode, exec) = (if m.read_only { "ro" } else { "rw" }, if m.exec { "" } else { " noexec" });
+                format!("mount {} {} {mode}{exec}\n", m.source.display(), m.target)
+            })
             .chain(spec.options.iter().map(|(k, v)| format!("option {k} {v}\n")))
             .collect();
         fs::write(dir.join("spec"), record).map_err(|e| host(e, "the record of a container"))?;

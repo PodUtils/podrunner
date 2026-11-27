@@ -179,7 +179,8 @@ pub struct ContainerId(pub String);
 
 /// A directory of the unit in a container. The hook checks (GitHub #35)
 /// give only sources under the runner directory of the unit; the hooks add
-/// one directory that the host made, the CA bundle of the broker (T-578).
+/// the directories that the host made: the CA bundle of the broker (T-578)
+/// and the cache of the job (T-651).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContainerMount {
     /// A path in the unit root, or the absolute path of a directory that
@@ -188,6 +189,10 @@ pub struct ContainerMount {
     /// A path in the container.
     pub target: String,
     pub read_only: bool,
+    /// A program in the mount may run. A confined container gets no
+    /// execute right in the other mounts: the CA directory holds no
+    /// program (T-603).
+    pub exec: bool,
 }
 
 /// A container of a job.

@@ -131,8 +131,8 @@ fn the_ca_directory_of_the_hooks_is_a_volume_out_of_the_base() {
     std::fs::create_dir_all(&runner).unwrap();
     std::fs::create_dir_all(&ca).unwrap();
     let mounts = [
-        ContainerMount { source: "work".into(), target: "/__w".into(), read_only: false },
-        ContainerMount { source: ca.clone(), target: "/__podrunner".into(), read_only: true },
+        ContainerMount { source: "work".into(), target: "/__w".into(), read_only: false, exec: true },
+        ContainerMount { source: ca.clone(), target: "/__podrunner".into(), read_only: true, exec: false },
     ];
     let base = volume_base_args(Some("namespace"), &runner);
     assert_eq!(base, ["--podvm-volume-base".to_string(), runner.display().to_string()]);
@@ -148,7 +148,7 @@ fn the_ca_directory_of_the_hooks_is_a_volume_out_of_the_base() {
     );
     assert!(!ca.starts_with(&runner), "the CA directory is out of the volume base");
     // A missing absolute source is not made here: the host made it.
-    let gone = [ContainerMount { source: dir.join("gone"), target: "/x".into(), read_only: true }];
+    let gone = [ContainerMount { source: dir.join("gone"), target: "/x".into(), read_only: true, exec: true }];
     assert!(volume_args(&runner, &gone).is_ok());
     assert!(!dir.join("gone").exists());
     let _ = std::fs::remove_dir_all(&dir);

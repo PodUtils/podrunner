@@ -170,6 +170,7 @@ impl HookUnit {
                 source: root.join(&m.source),
                 target: m.target.clone(),
                 read_only: m.read_only,
+                exec: true,
             });
         }
         let mut env = p.env.clone();
@@ -177,7 +178,9 @@ impl HookUnit {
         // job, so it has no walk for a link. A value of the job keeps its
         // priority, as in the unit.
         if let Some(ca) = &self.ca {
-            mounts.push(ContainerMount { source: ca.dir.clone(), target: CA_DIR.into(), read_only: true });
+            // The bundle holds no program.
+            let ca_dir = ContainerMount { source: ca.dir.clone(), target: CA_DIR.into(), read_only: true, exec: false };
+            mounts.push(ca_dir);
             let path = format!("{CA_DIR}/{}", ca.file);
             for v in &ca.vars {
                 env.entry(v.clone()).or_insert_with(|| path.clone());
@@ -195,7 +198,9 @@ impl HookUnit {
         // mode of the unit holds in each container; a value of the job
         // keeps its priority.
         if let Some(c) = &self.cache {
-            mounts.push(ContainerMount { source: c.dir.clone(), target: c.target.clone(), read_only: c.read_only });
+            // A browser of Playwright runs from the cache (T-480).
+            let (source, target) = (c.dir.clone(), c.target.clone());
+            mounts.push(ContainerMount { source, target, read_only: c.read_only, exec: true });
             for (k, v) in &c.env {
                 env.entry(k.clone()).or_insert_with(|| v.clone());
             }

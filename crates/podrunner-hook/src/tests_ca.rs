@@ -112,7 +112,7 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_mount_and_the_variables() {
     let (out, spec) = step(&mut u, &fake, &id, json!({}), 0);
     // The fake maps the target to its source: the step reads the bundle.
     assert!(out.starts_with(PEM), "{out}");
-    assert!(spec.contains(&format!("mount {} {CA_DIR} ro\n", dir.join("ca").display())), "{spec}");
+    assert!(spec.contains(&format!("mount {} {CA_DIR} ro noexec\n", dir.join("ca").display())), "{spec}");
     // Each variable names `CA_DIR/CA_FILE`, which the fake maps to the host.
     let host = dir.join("ca").join(CA_FILE).display().to_string();
     assert!(out.ends_with(&format!("[{host}] [{host}]\n")), "{out}");
@@ -131,7 +131,9 @@ fn a_container_of_a_unit_with_a_bundle_gets_the_mount_and_the_variables() {
     let service = response["context"]["services"][0]["id"].as_str().unwrap().to_string();
     for c in [job, service] {
         let spec = record(&fake, &id, &c);
-        assert!(spec.contains(&format!(" {CA_DIR} ro\n")), "{c}: {spec}");
+        assert!(spec.contains(&format!(" {CA_DIR} ro noexec\n")), "{c}: {spec}");
+        // T-603: each mount of the job keeps the execute right.
+        assert_eq!(spec.matches("noexec").count(), 1, "{c}: {spec}");
     }
     let _ = u.hook(parse(Command::CleanupJob, &call("cleanup_job", json!({}))).unwrap());
 }

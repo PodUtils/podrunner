@@ -283,7 +283,8 @@ mod tests {
         ];
         let (out, record) = container_step(&dir, &vars, serde_json::json!({}));
         let host = dir.join("sockets.logs/ca/podrunner-ca.pem");
-        assert!(record.contains(&format!("mount {} /__podrunner ro\n", host.parent().unwrap().display())), "{record}");
+        let ca = format!("mount {} /__podrunner ro noexec\n", host.parent().unwrap().display());
+        assert!(record.contains(&ca), "{record}");
         // The fake maps `/__podrunner` to its source: the step reads the bundle.
         assert!(out.starts_with(&format!("{ONE}{TWO}\n\n")), "each file once, in order: {out}");
         let lines: Vec<&str> = out.lines().filter(|l| l.starts_with('/')).collect();

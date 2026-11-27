@@ -69,7 +69,7 @@ mod tests {
     use super::*;
 
     fn mounts() -> Mounts {
-        let m = |s: &str, t: &str| ContainerMount { source: s.into(), target: t.into(), read_only: false };
+        let m = |s: &str, t: &str| ContainerMount { source: s.into(), target: t.into(), read_only: false, exec: true };
         Mounts::of(&[m("/r/_work", "/__w"), m("/r/_work/_temp", "/__w/_temp/"), m("ext", "/__e")], Path::new("/r"))
     }
 

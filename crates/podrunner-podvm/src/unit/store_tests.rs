@@ -7,7 +7,7 @@ use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 
 use podrunner_schema::UnitId;
-use podrunner_unit::{Count, Prepared, StartSpec, UnitCode, UnitDriver};
+use podrunner_unit::{ContainerMount, Count, Prepared, StartSpec, UnitCode, UnitDriver};
 
 use super::PodvmUnit;
 
@@ -200,6 +200,29 @@ fn the_cache_of_a_job_is_a_volume_and_the_confine_layer_names_it() {
     let _ = std::fs::remove_dir_all(&d);
     let (chroot, d) = driver("cache-chroot", "chroot", false);
     assert!(!chroot.host_mounts());
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+/// T-603: a container may write each writable mount and execute in each
+/// mount of the job, but not in the CA directory: it holds no program.
+#[test]
+fn the_ca_directory_of_a_confined_container_is_not_in_exec() {
+    let _one = super::FAKE_PODVM.lock().unwrap_or_else(|e| e.into_inner());
+    let (unit, d) = driver("confine-ca", "namespace", false);
+    let m = |target: &str, read_only, exec| ContainerMount {
+        source: target.into(),
+        target: target.into(),
+        read_only,
+        exec,
+    };
+    let mounts = [m("/__w", false, true), m("/__e", true, true), m("/__podrunner", true, false)];
+    assert!(unit.container_confine_args(&mounts).is_empty(), "no confine layer");
+    let unit = unit.with_confine();
+    let args = unit.container_confine_args(&mounts);
+    assert_eq!(args, ["--podvm-confine", "read=/;write=/__w;exec=/__w,/__e"]);
+    // A container with the CA directory only: no exec= list, as with no mount.
+    assert_eq!(unit.container_confine_args(&mounts[2..]), ["--podvm-confine", "read=/"]);
+    assert_eq!(unit.container_confine_args(&[]), ["--podvm-confine", "read=/"]);
     let _ = std::fs::remove_dir_all(&d);
 }
 
