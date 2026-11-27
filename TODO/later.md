@@ -20881,7 +20881,7 @@ TMPDIR"; the lane `long-tmp` of `user-gate.yml` is green.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20905,6 +20905,17 @@ A guard in those tests that kills and waits the child at its drop; and
 A planted failed assertion in a serve test leaves no `podrunner serve`
 process (`pgrep -f "podrunner serve"` is empty).
 
+## Done
+
+2026-11-27, `b73a3742` (tests on a development host). `Killed` and
+`spawn_killed` in `crates/podrunner/tests/scratch/mod.rs` kill and wait
+each `podrunner serve` child at its drop; each serve test and
+`kvm_kind.rs` use them. A planted failed assertion in
+`serve_status_wait` left one `podrunner serve` on the old code and none
+on the new code. `docs/hosted-sessions.md` and `docs/maintenance.md` take
+the shared lock with `flock -o`, so a child of a command does not hold
+it.
+
 
 # T-740: No check runs the tests with a long TMPDIR
 
@@ -20913,7 +20924,7 @@ process (`pgrep -f "podrunner serve"` is empty).
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20935,6 +20946,17 @@ bytes.
 
 A planted test that binds a socket under TMPDIR fails `sh
 scripts/agent/check.sh` and the job `test` of `gate.yml`.
+
+## Done
+
+2026-11-27, `b73a3742` and `3d69d830` (the test step on a development
+host; the job on GitHub not run). The `test` step of
+`scripts/agent/check.sh` and the job `test` of `gate.yml` run the tests
+of the workspace with a TMPDIR of 100 bytes (`scripts/lab/long-tmp.sh`,
+made under `/tmp/lt.XXXXXX` and removed after); `tmp-left` checks that
+directory. A planted test that binds a socket under TMPDIR fails the
+test step.
+
 
 # T-741: A step of CI fails when a third-party apt source of the runner fails
 
