@@ -56,6 +56,7 @@ pub mod targets {
             work_root: "/home/runner".into(),
             // Both work folders: `_work`, and `work` of the hosted path (T-590).
             work_dir: if data.len().is_multiple_of(3) { "work" } else { "_work" }.into(),
+            externals: podrunner_hook::policy::EXTERNALS.into(),
         };
         let mut gate = Gate::default();
         for command in [Command::PrepareJob, Command::RunScriptStep, Command::RunContainerStep, Command::CleanupJob] {
