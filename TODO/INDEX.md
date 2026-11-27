@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**729 entries: 64 open, 52 partial, 26 blocked, 587 done.**
+**730 entries: 64 open, 52 partial, 26 blocked, 588 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 287 | 326 |
-| P3 | 53 | 11 | 13 | 198 | 275 |
-| **All** | 64 | 52 | 26 | 587 | 729 |
+| P3 | 53 | 11 | 13 | 199 | 276 |
+| **All** | 64 | 52 | 26 | 588 | 730 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -775,5 +775,6 @@ acceptance, later The crate dependencies later than v1.
 | [T-730](later.md) | P2 | S | later | defect | done | A TERM just after the start of a microvm unit can be lost |
 | [T-731](later.md) | P3 | S | later | defect | done | A failed test of podrunner-microvm leaves its directory |
 | [T-732](later.md) | P3 | S | later | feature | blocked | The store refuses uses: $/PATH in a composite action |
-| [T-733](later.md) | P3 | S | later | defect | open | A test of the warm guest script fails with a long TMPDIR |
+| [T-733](later.md) | P3 | S | later | defect | done | A test of the warm guest script fails with a long TMPDIR |
 | [T-734](later.md) | P3 | S | later | defect | open | The hook policy of a podvm unit refuses the externals of the hosted layout |
+| [T-735](later.md) | P3 | M | later | defect | open | Tests that bind a Unix socket under TMPDIR fail with a long TMPDIR |

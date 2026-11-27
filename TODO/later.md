@@ -20576,7 +20576,7 @@ COORD-150 (#381) asks podcrates to follow `$/PATH` in a composite action.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20605,6 +20605,18 @@ and make a path over the limit fail at once with its cause, not after
 
 `cargo test -p podrunner-microvm warm` passes with a TMPDIR of 100
 characters.
+
+## Done
+
+2026-11-27, `25f899ee` (tests on a development host). The warm-script test
+of `podrunner-microvm` binds the socket of its stand-in of dockerd in a
+short directory `/tmp/pm-NAME-PID-N` (`tests::short_dir`, removed by the
+`Scratch` guard); `tests::socket_path` fails at once with the byte count
+and the path when `sun_path` (107 bytes) cannot hold it. With a TMPDIR
+of 100 characters, `cargo test -p podrunner-microvm` failed on the old
+code (1 test, after 20 s) and passes now (35). The other tests with a
+socket under TMPDIR are T-735.
+
 
 # T-734: The hook policy of a podvm unit refuses the externals of the hosted layout
 
@@ -20640,4 +20652,47 @@ from `run_root(run_sh)`, and add a test with the hosted layout.
 `/home/runner/actions-runner` and the work folder `/home/runner/work`,
 the mounts of `/__w` and `/__e` of a job container pass, and a source
 outside both is refused.
+
+# T-735: Tests that bind a Unix socket under TMPDIR fail with a long TMPDIR
+
+**Source:** the worker of T-733, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+Tests that bind a Unix socket under `std::env::temp_dir()` fail when the
+path passes the 107 bytes of `sun_path`, as T-733 did: users of
+`crates/podrunner/src/scratch.rs` (`control_tests.rs`,
+`serve/front_tests.rs`), `run_local/stale_pid_tests.rs`, `tests/serve.rs`,
+`tests/config_init.rs`, the tests of `podrunner-incus` (`src/tests.rs`,
+`tests/egress.rs`), `podrunner-local` (`front/tests.rs`, `fetch.rs`) and
+maybe `podrunner-unit` (`confine.rs`). A long TMPDIR is also a host
+class: podrunner itself puts sockets under TMPDIR (T-715 keeps the names
+short) and no lane runs with a long one.
+
+## Premise
+
+Listed by the worker of T-733 by a grep on 2026-11-27; not each one run
+with a long TMPDIR. Not checked: `doctor/tests.rs`, `incusd/tests.rs`,
+`notify.rs`, `tests/kvm_kind.rs`, the tests of `podrunner-broker-fake`,
+`podrunner-hook` `server.rs`, the hold tests of `podrunner-podvm`,
+`podrunner-egress`.
+
+## Approach
+
+1. A shared helper for tests (a short directory under `/tmp`, removed at
+   the drop, and an assert on 107 bytes that names the path), used by
+   each test above.
+2. A lane of the user-path gate with a TMPDIR of about 100 characters
+   (`scripts/lab/`), which shows each place where podrunner itself puts a
+   socket under TMPDIR.
+
+## Prove
+
+`cargo test --workspace` passes with a TMPDIR of 100 characters; the new
+lane of `user-gate.yml` is green or names each refusal of podrunner.
 
