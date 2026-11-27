@@ -20,18 +20,19 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Request the hosted runs of `main` (gate, `secrets.yml`, `level2.yml`,
-   `runner-image.yml`, then `user-gate.yml` with that image run): the fixes
-   of #370 (the `install:man` test, the allow line of secrets), the check
-   `serve:job:engine:microvm` of T-509, and the step of `cpu_s` of T-520.
-2. Merge the workers of T-520, T-634, and T-705 with T-697 and T-643.
-3. Take podnet `v0.4.0-beta.21` when it is released (T-701, podnet#784).
-4. The waits on podvm (COORD-138, 141, 143, 144) and podcrates
-   (COORD-145) are in "Open asks to other projects".
+1. Merge the workers of T-738 (P2: a long TMPDIR fails the sockets of
+   podrunner with no fix) and of T-739 with T-740 (a guard of the serve
+   tests; the tests under a TMPDIR of 100 bytes).
+2. Then request the hosted runs: `runner-image.yml` and `user-gate.yml`
+   prove T-741 (`scripts/apt-ubuntu.sh`, the lane `plain`) and the new
+   lane `long-tmp` (T-735, T-738).
+3. The waits on podvm (COORD-138, 141, 143, 144, 147) and podcrates
+   (COORD-140, 145, 146, 148, 149, 150) are in "Open asks to other
+   projects".
 
-The user-gate run 45860032871 is green in each lane, with `fsize-1g` and
-`cancel-container` (T-638, T-644). The OOM tests of T-515 pass on podvm
-and incus (runner-image 45852164277).
+Proven in CI since `v0.1.0-beta.8`: the engine through `serve` on
+microvm (T-717), `cpu_s` (T-520), a lost TERM (T-728, T-730). Tests on a
+development host only: the local mode of T-609 to T-737.
 
 ## The release `v0.1.0-beta.8`
 
@@ -142,7 +143,12 @@ state of each.
     `inspect`. #363 (COORD-137, T-521): the cgroup leg of `probe`.
 - podcrates: #373 (COORD-145, T-707): `container:` and `services:` jobs
   and the log of a job in `pod-fake-github`. #367 (COORD-140, T-691):
-  `unit.limits` in `run-report.v1`.
+  `unit.limits` in `run-report.v1`. #375 (COORD-146, T-714): the causes
+  of `no-tier-served` in `status.v1`. #379, #380, #381 (COORD-148 to 150,
+  T-724, T-726, T-732): `pod-actions-store` and `actions/checkout`, the
+  case of a name, `$/PATH`.
+- podvm: #378 (COORD-147, T-603): lock the read-only flag of a `:ro`
+  volume on the namespace rung.
 - podnet: #369 (COORD-142, T-701): answered in podnet#784; the fix ships
   in `v0.4.0-beta.21`.
 
