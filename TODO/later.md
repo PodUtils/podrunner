@@ -19894,7 +19894,7 @@ microvm kind.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19918,6 +19918,23 @@ record its residue in the report of the job, and go on with the run.
 with a unit that does not go and a short bound: the other jobs go on,
 and the residue of the unit is in its report.
 
+## Done
+
+2026-11-27, `242791a4` and `36164fad` (tests on a development host; the
+`--watch` path end to end and a podvm unit not run). At a stop by
+`fail-fast` or by a change under `--watch`, the wait for a unit has the
+bound of T-716 (`InUnit::bound`). At the bound the run prints
+`podrunner: JOB: unit u-N did not go in N s; the run goes on, and the
+unit goes in the background`, the log of the job names it, and the next
+job starts; the files of the run stay until the unit is gone. When the
+process ends while a unit still goes, it prints `podrunner: N units did
+not go at the cancel; podrunner ends now, and a helper ends them`,
+starts the helper of a third signal and keeps its exit code; the helper
+still prints its own line `ended at once`. Tests:
+`run_signal::a_unit_that_does_not_go_at_fail_fast_does_not_hold_the_run`
+and `cancel_tests::a_stop_by_fail_fast_waits_for_a_unit_only_until_the_bound`
+(both fail on the old code), and `stopping` (5).
+
 
 # T-721: A destroy at a cancel can run with no line and no bound
 
@@ -19926,7 +19943,7 @@ and the residue of the unit is in its report.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19947,6 +19964,18 @@ Send each destroy at a cancel through `stopping::wait_for`.
 
 `cargo test -p podrunner-local stopping`: each destroy at a cancel prints
 its lines and holds the bound.
+
+## Done
+
+2026-11-27, `36164fad` (tests on a development host). Each destroy at a
+cancel goes through `stopping::end_unit`: one wait with the stopping
+lines and the bound covers the first destroy, the stop of the hooks and
+the second destroy, also for a unit that ended at the cancel; when such a
+unit does not go in the bound, its job fails with `unit u-N did not go in
+N s at the cancel`. Test:
+`cancel_tests::a_destroy_of_a_unit_that_ended_at_the_cancel_has_the_bound`
+(fails on the old code).
+
 
 # T-722: A test of the podvm driver leaves its directory after a panic
 
@@ -19977,3 +20006,37 @@ Give `driver()` a guard that removes the directory at its drop, as the
 
 `cargo test -p podrunner-podvm` with a planted panic in one test: no
 entry stays in TMPDIR.
+
+# T-723: --log-dir loses the lines that podrunner adds to the log of a job in a unit
+
+**Source:** the worker of T-720, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+For a job in a unit, `InUnit` always pushes a blob entry, and
+`run_local/logs.rs::write_dir` writes only the blob text. So `--log-dir`
+loses each line that podrunner adds to the log of that job: the refused
+hook calls, the end of the output of the unit, the egress denials, the
+last requests of the broker, and the late unit of T-720. In the test of
+T-720 with `fail-fast`, `--log-dir` had no `job.log` for any job.
+
+## Premise
+
+Read from `crates/podrunner-local/src/exec.rs` and
+`crates/podrunner/src/run_local/logs.rs` by the worker of T-720 on
+2026-11-27.
+
+## Approach
+
+Write the lines of podrunner into `job.log` after the blob text (or into
+a `podrunner.log` beside it, named in `docs/local-mode.md`).
+
+## Prove
+
+`cargo test -p podrunner --test local` with a job that fails in a unit
+and `--log-dir`: the log of the job has the lines of podrunner.

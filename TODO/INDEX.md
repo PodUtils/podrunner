@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**717 entries: 67 open, 52 partial, 23 blocked, 575 done.**
+**718 entries: 66 open, 52 partial, 23 blocked, 577 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 19 | 11 | 285 | 325 |
-| P3 | 56 | 10 | 10 | 188 | 264 |
-| **All** | 67 | 52 | 23 | 575 | 717 |
+| P3 | 55 | 10 | 10 | 190 | 265 |
+| **All** | 66 | 52 | 23 | 577 | 718 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -762,6 +762,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-717](later.md) | P2 | S | later | defect | partial | The guest self-test counts the bridge of the engine as a NIC |
 | [T-718](later.md) | P3 | M | later | feature | open | A checkout in a composite action of the store gets no pinned tree |
 | [T-719](later.md) | P3 | S | later | defect | open | The guest self-test proves no NIC when the guest has no sysfs |
-| [T-720](later.md) | P3 | S | later | defect | open | A stop by fail-fast or by --watch waits for a unit with no bound |
-| [T-721](later.md) | P3 | S | later | defect | open | A destroy at a cancel can run with no line and no bound |
+| [T-720](later.md) | P3 | S | later | defect | done | A stop by fail-fast or by --watch waits for a unit with no bound |
+| [T-721](later.md) | P3 | S | later | defect | done | A destroy at a cancel can run with no line and no bound |
 | [T-722](later.md) | P3 | S | later | defect | open | A test of the podvm driver leaves its directory after a panic |
+| [T-723](later.md) | P3 | S | later | defect | open | --log-dir loses the lines that podrunner adds to the log of a job in a unit |
