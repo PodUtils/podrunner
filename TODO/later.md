@@ -5767,7 +5767,7 @@ Finding A9 of agent A.
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -5784,6 +5784,34 @@ Fix each one; a finding that the code cannot change goes into the documents.
 ## Prove
 
 `cargo test -p podrunner -p podrunner-local`
+
+## Done
+
+2026-11-27, `12dc61ff` and `35e3ceab` (tests on a development host as root; the
+new binary not run on a host; `--jobs 2` with units not run). Each
+finding was checked on `c6b6453e`. Not held any more: A17 (T-426), A21
+(#218), A22 and the `null:null` line (T-329), A24 (T-315), A11 on
+`--runner-dir` and podvm (T-310). Fixed: A10 (the broker gives
+`CacheServerUrl`, so the cache client of `setup-node` gets
+`ACTIONS_CACHE_URL`); A11 for guests with no feed, and so A12 (live
+lines, `job.log` and step logs follow the step number); A13 (routes that
+are all `host` get the container refusal first); A14 (a warning for a
+`--platform` of a Windows or macOS label); A16 (a dry run writes no lock
+and says "would pin"); A18 (a cancelled run names its group and the newer
+run, `GROUP.cancel`); A19 and A20 (`_work` and the runner files go at the
+end, also after SIGHUP; a runner that `config.sh` configured is refused,
+since podrunner would write over its credentials); A23 (the hold line
+after the start refusals); A25 (`cancelled NAME: fail-fast: the cell "X"
+failed`, and `reason` in the JSON event); A26 and A27 (the bundle note
+and the mirror files in `docs/install.md`); A28 ("1 reference", FAIL
+runner-dir of `doctor --run` for a busy directory, `step-NN.log`,
+"not selected (--job)"). A15 has a hint in a dry run; its fix waits for
+podcrates (T-743). Tests: `run_local::qa3_tests`, `exec/host_tests.rs`,
+and cases in `drive`, `routes`, `doctor.rs`, `run_views.rs` and
+`run_signal.rs`; seven of them compile on the old code and should fail
+there, which was not run; the release binary on the old code showed
+A10, A13, A15, A16, A19, A20, A23 and A28 still held.
+
 
 # T-309: A podvm unit reports ok for a failing test suite of npm 6
 
@@ -21065,4 +21093,40 @@ podnet, the vnet shim or a guest reach by their path.
 
 `cargo test -p podrunner-local` with a TMPDIR of 58 bytes: a run with
 `--allow` and `--vnet` passes the check of the socket paths.
+
+# T-743: An error of evaluation of one job ends the whole local run
+
+**Source:** the worker of T-308 (finding A15), 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** blocked
+
+## Problem
+
+`pod_actions_workflow::Run::expand` of podcrates `v0.86.0` fails the whole
+run when the evaluation of one job fails, and `podrunner run` exits 76;
+GitHub fails only that job. A dry run, which has no outputs of jobs,
+stops at `fromJSON(needs.X.outputs.Y)`; it names the cause since T-308.
+
+## Premise
+
+Seen with the release binary on `c6b6453e` and read in podcrates
+`v0.86.0` by the worker of T-308 on 2026-11-27.
+
+## Approach
+
+When `Run` can end one waiting job with a result, give `failure JOB:
+REASON` from `LocalSource::advance` and go on; in a dry run give
+`skipped JOB: a dry run has no outputs`.
+
+## Prove
+
+`cargo test -p podrunner-local drive`: a job with a bad expression fails
+alone and the others run; a dry run skips the job that needs outputs.
+
+## Blocker
+
+COORD-151 (#383) asks podcrates for a call that ends one job.
 

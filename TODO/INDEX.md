@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**737 entries: 63 open, 53 partial, 26 blocked, 595 done.**
+**738 entries: 62 open, 53 partial, 27 blocked, 596 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 19 | 11 | 288 | 328 |
-| P3 | 52 | 11 | 13 | 205 | 281 |
-| **All** | 63 | 53 | 26 | 595 | 737 |
+| P3 | 51 | 11 | 14 | 206 | 282 |
+| **All** | 62 | 53 | 27 | 596 | 738 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -352,7 +352,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-305](later.md) | P2 | S | later | defect | done | actions/setup-python v7 fails with the made-up token |
 | [T-306](later.md) | P2 | S | later | defect | done | On --runner-dir, a Python of setup-python cannot load libpython |
 | [T-307](later.md) | P2 | S | later | defect | done | The documents load the larger image into the wrong store |
-| [T-308](later.md) | P3 | M | later | defect | open | The P3 findings of the third QA, agent A |
+| [T-308](later.md) | P3 | M | later | defect | done | The P3 findings of the third QA, agent A |
 | [T-309](later.md) | P1 | S | later | defect | done | A podvm unit reports ok for a failing test suite of npm 6 |
 | [T-310](later.md) | P2 | S | later | defect | done | The live log of a step comes only when the step ends |
 | [T-311](later.md) | P2 | S | later | defect | done | container: and docker:// steps on podvm are planned and then refused |
@@ -785,3 +785,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-740](later.md) | P3 | S | later | defect | done | No check runs the tests with a long TMPDIR |
 | [T-741](later.md) | P2 | S | later | defect | partial | A step of CI fails when a third-party apt source of the runner fails |
 | [T-742](later.md) | P3 | S | later | feature | open | Two internal sockets of a run could bind through a directory descriptor |
+| [T-743](later.md) | P3 | S | later | defect | blocked | An error of evaluation of one job ends the whole local run |

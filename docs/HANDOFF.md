@@ -20,19 +20,18 @@ its work is done. Git keeps the history.
 
 In this order. `TODO/PROGRESS.md`, "Work order", has the rest.
 
-1. Merge the workers of T-738 (P2: a long TMPDIR fails the sockets of
-   podrunner with no fix) and of T-739 with T-740 (a guard of the serve
-   tests; the tests under a TMPDIR of 100 bytes).
-2. Then request the hosted runs: `runner-image.yml` and `user-gate.yml`
-   prove T-741 (`scripts/apt-ubuntu.sh`, the lane `plain`) and the new
-   lane `long-tmp` (T-735, T-738).
+1. Read the runs of the open `[gh action] requested` issue: the apt
+   script of CI (T-741, the lane `plain`), the lane `long-tmp` (T-735,
+   T-738) and the job `test` of the gate under a long TMPDIR (T-740).
+2. The P3 work of the local mode: T-719, T-742, T-609 (a step of
+   `runner-image.yml`), and the QA groups T-316 to T-339 and T-637.
 3. The waits on podvm (COORD-138, 141, 143, 144, 147) and podcrates
-   (COORD-140, 145, 146, 148, 149, 150) are in "Open asks to other
+   (COORD-140, 145, 146, 148 to 151) are in "Open asks to other
    projects".
 
 Proven in CI since `v0.1.0-beta.8`: the engine through `serve` on
 microvm (T-717), `cpu_s` (T-520), a lost TERM (T-728, T-730). Tests on a
-development host only: the local mode of T-609 to T-737.
+development host only: the local mode of T-308 and T-609 to T-743.
 
 ## The release `v0.1.0-beta.8`
 
@@ -146,7 +145,8 @@ state of each.
   `unit.limits` in `run-report.v1`. #375 (COORD-146, T-714): the causes
   of `no-tier-served` in `status.v1`. #379, #380, #381 (COORD-148 to 150,
   T-724, T-726, T-732): `pod-actions-store` and `actions/checkout`, the
-  case of a name, `$/PATH`.
+  case of a name, `$/PATH`. #383 (COORD-151, T-743): end one job on an
+  error of evaluation.
 - podvm: #378 (COORD-147, T-603): lock the read-only flag of a `:ro`
   volume on the namespace rung.
 - podnet: #369 (COORD-142, T-701): answered in podnet#784; the fix ships
