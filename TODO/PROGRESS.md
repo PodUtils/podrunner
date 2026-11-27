@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 723 entries: 67 open, 51 partial, 24 blocked, 581 done.
+`TODO/INDEX.md` holds 723 entries: 66 open, 51 partial, 24 blocked, 582 done.
 
 ## State
 
@@ -66,7 +66,7 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Merge the workers of T-725 with T-726, T-727 and T-728.
+1. Merge the workers of T-725 with T-726, and of T-728.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -79,7 +79,7 @@ then take the next one.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).
-5. The local P3 entries: T-656, T-658, T-659, T-609, T-719, T-725 to T-728. The P3 groups of the QA rounds: T-308, T-316, T-323,
+5. The local P3 entries: T-656, T-658, T-659, T-609, T-719, T-725, T-726, T-728. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-637, T-701.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).

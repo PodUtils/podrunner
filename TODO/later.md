@@ -20216,7 +20216,7 @@ in a composite: each gets the stand-in.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20239,6 +20239,21 @@ a copy of the guard, as `crates/podrunner/tests/scratch/mod.rs` does.
 
 `cargo test -p podrunner-podvm` with a fresh TMPDIR leaves it empty; a
 planted panic in one test of each file leaves nothing.
+
+## Done
+
+2026-11-27, `70e3ad1f` (tests on a development host; the ignored live tests
+built, not run). The tests of `containers_tests.rs`, `destroy_tests.rs`,
+`oom_tests.rs`, `cache.rs`, `store.rs`, `hold.rs` and `lib.rs` of
+`podrunner-podvm` use the `Scratch` guard; `tests/scratch/mod.rs` is a
+copy of the guard for the integration tests (`conformance`, `hold`,
+`limits`, `links`, `pull`, `report`). With a fresh TMPDIR, `cargo test -p
+podrunner-podvm` leaves it empty; a planted panic in a test of three
+files leaves nothing with the guard and a directory on the old code. The
+guard of the self-test of `hold.rs` has the short name `st`, so the path
+of its egress socket stays under the limit of 108 bytes for a TMPDIR of
+up to about 60 characters.
+
 
 # T-728: A warm fake unit on the hooks route can run on after TERM under load
 
