@@ -49,6 +49,9 @@ at the drop). CI runs the same on each push (`.github/workflows/gate.yml`).
 
 A full run of `check.sh` (the tests, with `PODRUNNER_RUNNER_DIR`) that
 passes records the tree that it checked in `.work/agent/checked-trees`.
+`check.sh` loads `scripts/cloud-env.sh` when `.work/tools/dev` (or
+`PODRUNNER_TOOLS`) exists, and falls back to `/usr/bin/python3` for
+`jsonschema` when pyenv lacks system packages.
 `.githooks/pre-push` refuses a push of a tree that is not recorded. Do not
 edit the tree while `check.sh` runs: the tree then differs from the
 recorded one. A change of only `TODO/` after a recorded tree needs only
@@ -67,7 +70,9 @@ run: tests compile `docs/cli.md` and `docs/contracts/`.
   `. ./scripts/cloud-env.sh`, then
   `cargo zigbuild --release --target aarch64-unknown-linux-musl -p podrunner`.
 * `sh scripts/check-static.sh BINARY` proves a static binary.
-* Set `CARGO_BUILD_JOBS=4`. Run one cargo build at a time.
+* Set `CARGO_BUILD_JOBS=4` (or `2` on 2-vCPU VMs;
+  `. ./scripts/cloud-env.sh` sets `min(nproc, 4)`). Run one cargo build
+  at a time.
 
 ## Crates
 

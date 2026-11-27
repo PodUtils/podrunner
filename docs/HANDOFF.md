@@ -196,4 +196,4 @@ its entries is not done: `TODO/issues.md` has the other open issues.
 - The watchers (`AGENTS.md`, section 8, step 5): the watcher of the
   organization and the watcher of the runs of Actions. Read
   `.work/watch.log` and `.work/runs.log`. Restart a stopped watcher with
-  `sh scripts/session-start.sh`.
+  `sh scripts/session-start.sh` (or `--run-watcher` daemons on Antigravity).

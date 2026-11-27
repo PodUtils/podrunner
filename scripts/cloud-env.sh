@@ -6,11 +6,19 @@
 : "${RUSTUP_HOME:=$PODRUNNER_TOOLS/rustup}"
 : "${ZIG_GLOBAL_CACHE_DIR:=$PODRUNNER_TOOLS/zig-cache}"
 : "${CARGO_ZIGBUILD_CACHE_DIR:=$PODRUNNER_TOOLS/zigbuild-cache}"
-: "${CARGO_BUILD_JOBS:=4}"
+if [ -z "${CARGO_BUILD_JOBS:-}" ]; then
+    podrunner_cpus=$(nproc 2>/dev/null || printf 4)
+    case "$podrunner_cpus" in
+        [1-3]) CARGO_BUILD_JOBS=$podrunner_cpus ;;
+        *) CARGO_BUILD_JOBS=4 ;;
+    esac
+    unset podrunner_cpus
+fi
+: "${CARGO_INCREMENTAL:=0}"
 : "${CARGO_NET_GIT_FETCH_WITH_CLI:=true}"
 case ":$PATH:" in *":$PODRUNNER_TOOLS/bin:"*) ;; *) PATH=$PODRUNNER_TOOLS/bin:$PATH ;; esac
 case ":$PATH:" in *":$CARGO_HOME/bin:"*) ;; *) PATH=$CARGO_HOME/bin:$PATH ;; esac
-export PODRUNNER_TOOLS CARGO_HOME RUSTUP_HOME CARGO_BUILD_JOBS CARGO_NET_GIT_FETCH_WITH_CLI PATH
+export PODRUNNER_TOOLS CARGO_HOME RUSTUP_HOME CARGO_BUILD_JOBS CARGO_INCREMENTAL CARGO_NET_GIT_FETCH_WITH_CLI PATH
 export ZIG_GLOBAL_CACHE_DIR CARGO_ZIGBUILD_CACHE_DIR
 
 podrunner_runner_version=$(sed -n 's/^version = "\(.*\)"$/\1/p' images/runner/runner.toml)

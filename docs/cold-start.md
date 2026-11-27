@@ -1,7 +1,12 @@
 # Cold start
 
 Run these commands from the checkout root on Linux. The Claude Code
-session hook runs the first command. In Codex, run it from the shell.
+session hook runs the first command. In Codex, run it from the shell. In
+Antigravity / Gemini Cloud, `.agents/environment.json` runs
+`sh scripts/session-start.sh --no-watchers && sh scripts/cloud-setup.sh --runner --dev-tools`
+on VM startup; run `sh scripts/session-start.sh --no-watchers` if needed
+and start both watchers as daemon tasks (`--run-watcher watch` and
+`--run-watcher runs`).
 
 ```sh
 sh scripts/session-start.sh
@@ -10,14 +15,17 @@ sh scripts/cloud-setup.sh --runner
 cargo todo check
 ```
 
-The setup installs tools and the Actions runner. The Claude Code Cloud
-hook loads the environment for new shells. In Codex, load
-`scripts/cloud-env.sh` in each new shell. Use
-`cargo build --release -p podrunner` to build the product.
+The setup installs tools, locked Cargo dependencies and the Actions
+runner (add `--dev-tools` for `groff-base`, `mandoc` and
+`python3-jsonschema`). The Claude Code Cloud hook loads the environment
+for new shells. In Codex and Antigravity, load `scripts/cloud-env.sh` in
+each new shell. Use `cargo build --release -p podrunner` to build the
+product.
 
-Read [the handoff](HANDOFF.md), [the rules](../AGENTS.md) and
-[the work order](../TODO/PROGRESS.md). Read the last CI runs and open issues as
-shown in [Maintenance](maintenance.md). Read the watcher logs
+Read [the handoff](HANDOFF.md), [the rules](../AGENTS.md),
+[Hosted sessions](hosted-sessions.md) and
+[the work order](../TODO/PROGRESS.md). Read the last CI runs and open
+issues as shown in [Maintenance](maintenance.md). Read the watcher logs
 `.work/watch.log` and `.work/runs.log`.
 If the Actions mirror refuses a read, use
 `gh run list --repo PodUtils/podrunner --branch main`.

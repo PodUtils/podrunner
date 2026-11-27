@@ -1,8 +1,43 @@
 #!/bin/sh
 # SPDX-License-Identifier: 0BSD
 # Install the pinned tools on a Linux host. Load cloud-env.sh in each shell.
-#   sh scripts/cloud-setup.sh [--runner] [TARGET...]
+#   sh scripts/cloud-setup.sh [--runner] [--dev-tools] [TARGET...]
+#
+# With --runner, also unpack the pinned official Actions runner for check.sh.
+# With --dev-tools, also install missing groff-base, mandoc and
+# python3-jsonschema packages when root or passwordless sudo apt-get works.
 set -eu
+
+with_runner=0
+dev_tools=0
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --runner)
+            with_runner=1
+            shift
+            ;;
+        --dev-tools)
+            dev_tools=1
+            shift
+            ;;
+        -h | --help)
+            sed -n '3,8p' "$0" | sed 's/^# \{0,1\}//'
+            exit 0
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            echo "usage: sh scripts/cloud-setup.sh [--runner] [--dev-tools] [TARGET...]" >&2
+            exit 64
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
 CDPATH='' cd "$(dirname "$0")/.."
 # shellcheck source=scripts/cloud-env.sh
 . ./scripts/cloud-env.sh
@@ -24,11 +59,6 @@ case $(uname -m) in
         ;;
     *) echo "cloud-setup: unsupported host architecture" >&2; exit 2 ;;
 esac
-with_runner=0
-if [ "${1:-}" = --runner ]; then
-    with_runner=1
-    shift
-fi
 [ "$#" -gt 0 ] || set -- x86_64-unknown-linux-musl
 
 for tool in cc curl file flock git python3 readelf sha256sum tar timeout xz; do
@@ -45,6 +75,40 @@ download() {
     curl -qfsSL --proto '=https' --proto-redir '=https' --retry 2 --max-time 180 -o "$2" "$1" </dev/null
     printf '%s  %s\n' "$3" "$2" | sha256sum -c -
 }
+
+install_dev_tools() (
+    umask 022
+    missing=
+    if ! command -v groff >/dev/null 2>&1; then
+        missing="$missing groff-base"
+    fi
+    if ! command -v mandoc >/dev/null 2>&1; then
+        missing="$missing mandoc"
+    fi
+    if ! python3 -I -c 'import jsonschema' 2>/dev/null &&
+       ! { [ -x /usr/bin/python3 ] && /usr/bin/python3 -I -c 'import jsonschema' 2>/dev/null; }; then
+        missing="$missing python3-jsonschema"
+    fi
+    if [ -n "$missing" ] && command -v apt-get >/dev/null 2>&1; then
+        apt_sudo=none
+        if [ "$(id -u)" = 0 ]; then
+            apt_sudo=
+        elif command -v sudo >/dev/null 2>&1 && sudo -n -E true 2>/dev/null; then
+            apt_sudo="sudo -n -E"
+        elif command -v sudo >/dev/null 2>&1 &&
+             (sudo -n true 2>/dev/null || sudo -n apt-get --version >/dev/null 2>&1); then
+            apt_sudo="sudo -n"
+        fi
+        if [ "$apt_sudo" != none ]; then
+            if [ -f /etc/apt/sources.list.d/ubuntu.sources ] ||
+               { [ -f /etc/apt/sources.list ] && grep -q '^[[:space:]]*deb' /etc/apt/sources.list; }; then
+                # shellcheck disable=SC2086 # $missing is a package word list
+                DEBIAN_FRONTEND=noninteractive APT_UBUNTU_SUDO="$apt_sudo" timeout 300 sh scripts/apt-ubuntu.sh update </dev/null &&
+                    DEBIAN_FRONTEND=noninteractive APT_UBUNTU_SUDO="$apt_sudo" timeout 300 sh scripts/apt-ubuntu.sh install $missing </dev/null
+            fi
+        fi
+    fi
+)
 
 if ! command -v rustup >/dev/null 2>&1; then
     url=https://static.rust-lang.org/rustup/archive/1.29.3/$arch-unknown-linux-gnu/rustup-init
@@ -79,6 +143,14 @@ if [ "$with_runner" -eq 1 ] && [ ! -x "$podrunner_runner_cache/bin/Runner.Listen
     tar -xzf "$stage/runner.tar.gz" -C "$stage/runner"
     test -x "$stage/runner/bin/Runner.Listener"
     mv -T "$stage/runner" "$podrunner_runner_cache"
+fi
+
+if [ "$dev_tools" -eq 1 ]; then
+    install_dev_tools
+fi
+
+if ! cargo fetch --locked --offline >/dev/null 2>&1; then
+    timeout 600 cargo fetch --locked </dev/null
 fi
 
 printf 'cloud-setup: %s, Zig %s, %s\n' "$(rustc --version)" "$(zig version)" "$(cargo-zigbuild --version)"

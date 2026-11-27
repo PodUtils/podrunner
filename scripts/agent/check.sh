@@ -27,6 +27,16 @@
 #   sh scripts/agent/check.sh [notest]
 set -u
 cd "$(dirname "$0")/../.." || exit 1
+tools_dir=${PODRUNNER_TOOLS:-$PWD/.work/tools/dev}
+if [ -d "$tools_dir" ]; then
+    if [ -z "${CARGO_HOME:-}" ] && [ ! -d "$tools_dir/cargo" ] && [ -d "${HOME:-}/.cargo" ]; then
+        CARGO_HOME=$HOME/.cargo
+        RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}
+    fi
+    # shellcheck source=scripts/cloud-env.sh
+    . ./scripts/cloud-env.sh
+fi
+unset tools_dir
 log=${TMPDIR:-/tmp}/podrunner-check
 mkdir -p "$log"
 rc=0
@@ -88,13 +98,21 @@ echo "ghcr $gc"; [ "$gc" -eq 0 ] || { rc=1; tail -20 "$log/ghcr.log"; }
 { sh scripts/check-commit-msg.sh --self-test && sh scripts/check-commit-msg.sh --rev HEAD; } > "$log/msg.log" 2>&1; m=$?
 echo "commit-msg $m"; [ "$m" -eq 0 ] || { rc=1; grep -v "^ok" "$log/msg.log" | head -20; }
 # The schema of podrunner.toml (T-479), where python3 has jsonschema; the
-# gate runs it in its venv.
-if python3 -I -c 'import jsonschema' 2> /dev/null; then
-    python3 -I scripts/check-config-schema.py --self-test > "$log/config-schema.log" 2>&1; c=$?
+# gate runs it in its venv. Fall back to /usr/bin/python3 when pyenv lacks
+# system packages.
+schema_py=python3
+if ! "$schema_py" -I -c 'import jsonschema' 2> /dev/null &&
+   [ -x /usr/bin/python3 ] &&
+   /usr/bin/python3 -I -c 'import jsonschema' 2> /dev/null; then
+    schema_py=/usr/bin/python3
+fi
+if "$schema_py" -I -c 'import jsonschema' 2> /dev/null; then
+    "$schema_py" -I scripts/check-config-schema.py --self-test > "$log/config-schema.log" 2>&1; c=$?
     echo "config-schema $c"; [ "$c" -eq 0 ] || { rc=1; cat "$log/config-schema.log"; }
     # The design checks of the gate's job record (the word ceiling of
     # SPEC.md, the schemas, the contracts).
-    { bash docs/design/verify.sh && sh scripts/check-design.sh --self-test && sh scripts/check-design.sh; } > "$log/design.log" 2>&1; d=$?
+    { if [ "$schema_py" = /usr/bin/python3 ]; then PATH="/usr/bin:$PATH" bash docs/design/verify.sh; else bash docs/design/verify.sh; fi &&
+        sh scripts/check-design.sh --self-test && sh scripts/check-design.sh; } > "$log/design.log" 2>&1; d=$?
     echo "design $d"; [ "$d" -eq 0 ] || { rc=1; grep -v "^ok" "$log/design.log" | tail -20; }
 else
     echo "config-schema and design skipped: no jsonschema module"
