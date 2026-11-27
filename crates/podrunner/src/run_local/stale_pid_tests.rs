@@ -56,7 +56,7 @@ fn the_unit_files_of_a_dead_run_go_with_it() {
         std::fs::read_dir(&tmp).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
     left.sort();
     let _ = std::fs::remove_dir_all(&tmp);
-    let mut want = vec![
+    let mut want = [
         format!("podrunner-local-broker-{k}-1.sock"),
         format!("podrunner-local-unit-{k}-u-1"),
         format!("podrunner-local-unit-{k}-u-1.logs"),
@@ -65,7 +65,7 @@ fn the_unit_files_of_a_dead_run_go_with_it() {
     want.sort();
     assert_eq!(got, want.iter().map(|n| tmp.join(n)).collect::<Vec<_>>());
     assert!(none.is_empty(), "the files of another user: {none:?}");
-    let mut kept = vec![
+    let mut kept = [
         format!("podrunner-local-broker-{k}-2.sock"),
         format!("podrunner-local-unit-{k}-u-9"),
         format!("podrunner-local-unit-{other}-u-1"),
