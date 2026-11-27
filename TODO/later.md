@@ -19652,7 +19652,7 @@ COORD-146 (#375) asks podcrates for the causes of `no-tier-served` in
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19678,6 +19678,20 @@ and let the cleanup of a dead run find them by that key.
 the same pid and one `TMPDIR` keep each its own files; a socket path at
 the longest `TMPDIR` that the run takes stays under 107 bytes.
 
+## Done
+
+2026-11-27, `110c1db3` and `5c24e4cb` (tests on a development host). The
+names `podrunner-local-unit-KEY-u-N` (and its `.logs`),
+`podrunner-local-broker-KEY-N.sock` and `podrunner-run-export-KEY-u-N`
+have KEY in place of the pid: 7 characters of a hash of the key of the
+pid namespace and the pid (`podrunner_local::runkey`), not a random key,
+so the cleanup computes the key of a dead run from the name of its
+directory; 7 characters keep the longest `TMPDIR` that fits the socket
+path. A file with the old pid name, of an older release, now stays in
+`TMPDIR`. Tests: `stale::ns_tests::two_namespaces_of_pid_1_do_not_meet`
+(fails on the old names), `runkey` (2, with the edge of the socket path)
+and `stale_pid_tests` for the keys.
+
 
 # T-716: The wait of a cancel for a unit has no bound
 
@@ -19686,7 +19700,7 @@ the longest `TMPDIR` that the run takes stays under 107 bytes.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19711,6 +19725,20 @@ hand-over, and end with the exit code of a cancel.
 `cargo test -p podrunner --test run_signal` with a unit that does not go
 and a short bound from the test: the run ends after the bound, the
 helper removes the unit, and nothing stays.
+
+## Done
+
+2026-11-27, `110c1db3` (tests on a development host; a podvm unit not
+run). After a signal, the run waits at most 120 s for each unit to go
+(`cancel::UNIT_BOUND`, the call of 2026-11-27 in `docs/decisions.md`),
+then prints `podrunner: JOB: unit u-N did not go in N s; podrunner ends
+now, and a helper ends the unit` and ends as a third signal does, exit
+130. The private first argument `--podrunner-unit-bound-ms` (as the other
+private arguments of `main.rs`) sets a short bound for a test. Tests:
+`run_signal::a_unit_that_does_not_go_is_handed_over_at_the_bound` (fails
+with no bound) and `stopping` (2). A stop by `fail-fast` or `--watch` is
+T-720; a destroy with no line is T-721.
+
 
 # T-717: The guest self-test counts the bridge of the engine as a NIC
 
@@ -19827,3 +19855,65 @@ microvm kind.
 
 `cargo test -p podrunner-slots guest`: a tree with no `lo` gives
 `net=unknown` and a failed verdict; then a green `runner-image.yml` run.
+
+# T-720: A stop by fail-fast or by --watch waits for a unit with no bound
+
+**Source:** the worker of T-716, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+The bound of T-716 holds only after a signal. A stop by `fail-fast` or by
+a change under `--watch` still waits for a unit with no end, and an end
+of the process there would end the other jobs or the watch.
+
+## Premise
+
+Read from `crates/podrunner-local/src/exec.rs` and `exec/stopping.rs` by
+the worker of T-716 on 2026-11-27.
+
+## Approach
+
+At the bound, leave the destroy of the unit to run in the background,
+record its residue in the report of the job, and go on with the run.
+
+## Prove
+
+`cargo test -p podrunner --test run_signal` (or the test of `--watch`)
+with a unit that does not go and a short bound: the other jobs go on,
+and the residue of the unit is in its report.
+
+
+# T-721: A destroy at a cancel can run with no line and no bound
+
+**Source:** the worker of T-716, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+When the waiter of a unit ends at the cancel, `waited` is `Ok(Some)` and
+`destroy()` runs with no stopping line and no bound; the second
+`destroy()` after `Hooks::stop` is the same.
+
+## Premise
+
+Read from `crates/podrunner-local/src/exec.rs` and `exec/stopping.rs` by
+the worker of T-716 on 2026-11-27.
+
+## Approach
+
+Send each destroy at a cancel through `stopping::wait_for`.
+
+## Prove
+
+`cargo test -p podrunner-local stopping`: each destroy at a cancel prints
+its lines and holds the bound.
+

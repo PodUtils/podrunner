@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**714 entries: 68 open, 52 partial, 22 blocked, 572 done.**
+**716 entries: 68 open, 52 partial, 22 blocked, 574 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 19 | 11 | 285 | 325 |
-| P3 | 57 | 10 | 9 | 185 | 261 |
-| **All** | 68 | 52 | 22 | 572 | 714 |
+| P3 | 57 | 10 | 9 | 187 | 263 |
+| **All** | 68 | 52 | 22 | 574 | 716 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -757,8 +757,10 @@ acceptance, later The crate dependencies later than v1.
 | [T-712](later.md) | P3 | S | later | defect | done | serve names no kind and no cause in no-tier-served |
 | [T-713](later.md) | P3 | M | later | feature | done | A checkout of another repository or ref in a local action fails |
 | [T-714](later.md) | P3 | S | later | feature | blocked | The text of status names no cause of no-tier-served |
-| [T-715](later.md) | P3 | S | later | defect | open | Two local runs of the same pid share the names of their unit files |
-| [T-716](later.md) | P3 | S | later | defect | open | The wait of a cancel for a unit has no bound |
+| [T-715](later.md) | P3 | S | later | defect | done | Two local runs of the same pid share the names of their unit files |
+| [T-716](later.md) | P3 | S | later | defect | done | The wait of a cancel for a unit has no bound |
 | [T-717](later.md) | P2 | S | later | defect | partial | The guest self-test counts the bridge of the engine as a NIC |
 | [T-718](later.md) | P3 | M | later | feature | open | A checkout in a composite action of the store gets no pinned tree |
 | [T-719](later.md) | P3 | S | later | defect | open | The guest self-test proves no NIC when the guest has no sysfs |
+| [T-720](later.md) | P3 | S | later | defect | open | A stop by fail-fast or by --watch waits for a unit with no bound |
+| [T-721](later.md) | P3 | S | later | defect | open | A destroy at a cancel can run with no line and no bound |

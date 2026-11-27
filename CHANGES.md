@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line (`run`) | The files of a unit in `TMPDIR` have a key of the run, not its pid (`podrunner-local-unit-KEY-u-N`, `podrunner-local-broker-KEY-N.sock`, `podrunner-run-export-KEY-u-N`). After a signal, a unit that does not go in 120 s is handed to the helper of a third signal: the line `podrunner: JOB: unit u-N did not go in N s; ...`, exit 130. | T-715, T-716 |
 | the local mode | A checkout in a local composite action gets the pinned tree of its static `repository` and `ref`; the fake broker has the route `GET /_checkout/pin/KEY`. | T-713 |
 | command line (`run`), the `--web` view | SIGHUP prints the stopping lines; a cancel prints the lines of each unit that goes; a third signal prints `ended at once`, and a helper removes the units and the files of the run; `state.json` of `--web` has `stopping`. No exit code changes. | T-636 |
 | command line | A flag that takes one value, given two times, is refused with exit 64 and its name, for each command (`run` and `doctor --run` check the command line only; repeating flags such as `--secret`, `--allow`, `--var` and `--platform` keep each value). | T-711 |
