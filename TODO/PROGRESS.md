@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 723 entries: 67 open, 52 partial, 24 blocked, 580 done.
+`TODO/INDEX.md` holds 723 entries: 67 open, 51 partial, 24 blocked, 581 done.
 
 ## State
 
@@ -66,8 +66,7 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the runs of #377: `user-gate.yml` proves T-717 and the check
-   `serve:job:engine:microvm` of T-509.
+1. Merge the workers of T-725 with T-726, T-727 and T-728.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write

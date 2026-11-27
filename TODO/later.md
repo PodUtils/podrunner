@@ -11916,6 +11916,14 @@ kind to boundary None at its start, because the guest self-test counts
 `docker0` of the bundled engine as a NIC (T-717). Next: T-717, then the
 lane again.
 
+State (2026-11-27, `user-gate.yml` 45932036117; proven in CI on
+GitHub-hosted runners): the check `serve:job:engine:microvm` passes: one
+runner job through `serve` and `pod-fake-githome serve --github` on the
+microvm kind with the engine of the full image runs a container and a
+second container by its name on a user network. Left: a `container:` and
+a `services:` job (T-707, COORD-145), and githome's released source,
+which the sessions of podrunner cannot reach.
+
 
 # T-510: G-39: one record of each change of a contract that githome reads
 
@@ -19778,7 +19786,7 @@ T-720; a destroy with no line is T-721.
 **Milestone:** later
 **Priority:** P2
 **Effort:** S
-**Status:** partial
+**Status:** done
 
 ## Problem
 
@@ -19821,6 +19829,14 @@ device". Tests: `a_bridge_and_a_veth_made_in_the_guest_are_not_a_nic`
 and `a_nic_with_a_device_fails_beside_a_bridge` (both fail on the old
 rule). Next: a green check `serve:job:engine:microvm` of lane
 `serve-incus-kvm`. A guest with no sysfs is T-719.
+
+## Done
+
+2026-11-27, `user-gate.yml` 45932036117 on `3e6d4560` with
+`runner-image.yml` 45909317045 (proven in CI on GitHub-hosted runners):
+the check `serve:job:engine:microvm` of the lane `serve-incus-kvm`
+passes; `serve` keeps the guest claim of the microvm kind with the
+engine of the full image, and each other row of each lane holds.
 
 
 # T-718: A checkout in a composite action of the store gets no pinned tree

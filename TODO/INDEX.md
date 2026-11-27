@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**723 entries: 67 open, 52 partial, 24 blocked, 580 done.**
+**723 entries: 67 open, 51 partial, 24 blocked, 581 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 10 | 19 | 11 | 285 | 325 |
+| P2 | 10 | 18 | 11 | 286 | 325 |
 | P3 | 56 | 10 | 11 | 193 | 270 |
-| **All** | 67 | 52 | 24 | 580 | 723 |
+| **All** | 67 | 51 | 24 | 581 | 723 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -759,7 +759,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-714](later.md) | P3 | S | later | feature | blocked | The text of status names no cause of no-tier-served |
 | [T-715](later.md) | P3 | S | later | defect | done | Two local runs of the same pid share the names of their unit files |
 | [T-716](later.md) | P3 | S | later | defect | done | The wait of a cancel for a unit has no bound |
-| [T-717](later.md) | P2 | S | later | defect | partial | The guest self-test counts the bridge of the engine as a NIC |
+| [T-717](later.md) | P2 | S | later | defect | done | The guest self-test counts the bridge of the engine as a NIC |
 | [T-718](later.md) | P3 | M | later | feature | done | A checkout in a composite action of the store gets no pinned tree |
 | [T-719](later.md) | P3 | S | later | defect | open | The guest self-test proves no NIC when the guest has no sysfs |
 | [T-720](later.md) | P3 | S | later | defect | done | A stop by fail-fast or by --watch waits for a unit with no bound |

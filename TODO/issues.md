@@ -370,7 +370,7 @@ numbers. `TODO/RULES.md` gives the rules.
 | #374 | [gh action] requested | closed (gate 45894692855, secrets 45894696606 and `level2.yml` 45894700040 green; `runner-image.yml` 45894703793 red at the incus test of `cpu_s`, fixed in the commit that names T-520; `user-gate.yml` 45900663115 did not start its lanes) | T-252, T-509, T-520 |
 | #375 | COORD-146: status.v1: the cause of `no-tier-served` (to podcrates) | open (waits for the answer of podcrates) | T-714 |
 | #376 | [gh action] requested | closed (gate 45909311687 and `runner-image.yml` 45909317045 green; `user-gate.yml` 45916111280 red at `serve:job:engine:microvm` only, T-717) | T-509, T-520, T-717 |
-| #377 | [gh action] requested | open (gate and `user-gate.yml` on `de503b2b` with `runner-image.yml` 45909317045) | T-509, T-717 |
+| #377 | [gh action] requested | closed (gate 45932032708 and `user-gate.yml` 45932036117 green; `serve:job:engine:microvm` passes) | T-509, T-717 |
 | #378 | COORD-147: lock the read-only flag of a `:ro` volume in the namespace rung (to podvm) | open (waits for the answer of podvm) | T-603 |
 | #379 | COORD-148: pod-actions-store `resolve`: an `except` list for composite actions (to podcrates) | open (waits for the answer of podcrates) | T-724 |
 | #341 | [gh action] requested | closed (on `e4627e6` and `14883d7`: gate 44874012469, `level2.yml` 44874016083, `runner-image.yml` 44874019156, `hosted-snapshot.yml` 44874022336, `hosted-boot.yml` 44878540271 and `user-gate.yml` 44878038200 green) | T-583, T-545, T-581, T-549, T-573, T-532, T-403, T-556, T-582 |
