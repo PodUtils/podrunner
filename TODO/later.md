@@ -20148,7 +20148,7 @@ COORD-148 (#379) asks podcrates for an `except` list on `resolve`.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20175,6 +20175,24 @@ workflow.
 that uses `./local-action`, which has a remote `uses:` and a checkout:
 both are pinned.
 
+## Done
+
+2026-11-27, `aa5ba0ed` and `ed6efca3` (tests on a development host, with
+runner 2.338.2; a guest unit not run). The walk of the actions of the
+store (`action_checkouts`, now `Found { checkouts, locals }`) gives each
+`uses: ./PATH` with its level; `composites::store_locals` reads those
+local actions, and each local action that they name, to 10 levels, and
+the run pins their remote `uses:` and the trees of their checkouts as for
+a local action of the workflow; a new remote `uses:` makes the run
+resolve again. A path with `..`, or a link out of the tree, fails the
+run. Tests: the e2e `a_local_action_that_an_action_of_the_store_names_is_pinned`
+(it fails on the old code; a planted defect fails it) and
+`the_local_actions_that_the_actions_of_the_store_name`. Found and fixed
+in the same work: the two runner tests of `store_checkout.rs` ran at
+once on one runner directory, and a listener hung (a `RUNNER` mutex now,
+as in `local.rs`); the e2e of T-718 ran in neither `check.sh` nor
+`level2.yml`, and both run `--test store_checkout` now.
+
 
 # T-726: The name actions/checkout is matched with its case
 
@@ -20183,7 +20201,7 @@ both are pinned.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -20208,6 +20226,24 @@ place that podrunner names it.
 
 `cargo test -p podrunner-local` with `Actions/Checkout@v4` in a step and
 in a composite: each gets the stand-in.
+
+State (2026-11-27; read by the worker of T-725): GitHub matches the
+owner and the repository of `uses:` with no case, and the ref and the
+path keep their case. The docs of `uses:` say nothing of it;
+`actions/runner` `v2.338.2` (`ActionManager.cs`, `GetDownloadInfoAsync`)
+sends `NameWithOwner` as written and matches its key `Name@Ref` with
+case, so the broker must answer under the name as the job asked.
+`Actions/checkout@SHA`, `actions/Checkout@SHA` and `ACTIONS/CHECKOUT@SHA`
+run on github.com and `actions/checkout@V4` fails (a third-party run,
+https://github.com/getplumber-examples/github-actions-miscellaneous-knowledge/actions/runs/44713707806,
+read through the REST API). The places of podrunner: `run_local/actions.rs`
+(`retain`), `composites.rs` (2), `checkout_root.rs`, and in
+`podrunner-local` `message.rs`, `tree/ignored.rs`, `tree/refs.rs`,
+`localrepo.rs` (`CHECKOUT`), `store/checkouts.rs`; the fake broker
+(`CHECKOUT_ACTION`) answers under the name as asked. Three matches are in
+`pod-actions-store` (COORD-149, #380). Next: the side of podrunner, then
+the pin of the podcrates version.
+
 
 # T-727: The other tests of podrunner-podvm remove their directory by hand
 
@@ -20291,4 +20327,35 @@ event of the unit, not for `LIMIT`.
 `cargo test -p podrunner-fake` under a load of the host (for example
 eight busy loops) passes 20 times in a row; a planted lost signal fails
 test 9.
+
+# T-729: A uses: $/PATH gets no stand-in and no pin
+
+**Source:** the worker of T-725, 2026-11-27
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+GitHub documents `uses: $/PATH`: an action in the same repository at the
+commit of the run (runner 2.338.2 has `SelfRepositoryAlias` for it).
+podrunner has no handling for it: a workflow or a composite with `$/`
+gets no local action, no stand-in and no pin.
+
+## Premise
+
+Read in the docs of GitHub and the source of `actions/runner` `v2.338.2`
+by the worker of T-725 on 2026-11-27; not measured on github.com.
+
+## Approach
+
+Map `$/PATH` to the tree of the run, as `./PATH`, and for a composite of
+the store to the tree of the repository of that action at its commit.
+
+## Prove
+
+`cargo test -p podrunner --test local`: a workflow with `uses: $/a` and a
+composite with `uses: $/b` run each action of the tree of the run.
 
