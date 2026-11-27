@@ -6,7 +6,7 @@
 //!
 //! The test unit writes what it sees into its working directory: the boot
 //! id of its kernel, its network interfaces that have a device (a NIC of
-//! the machine; see [`net_lines`]), whether a
+//! the machine; see `net_lines`), whether a
 //! canary file that slots planted on the host is visible, whether the
 //! process of slots is visible, and whether the process and the file of a
 //! first unit that still runs are visible. The host and the unit share no
@@ -280,7 +280,7 @@ pub struct Host {
 }
 
 /// The verdict on the lines of the test unit. Only an interface with a
-/// device fails the line `net` (see [`net_lines`]). That rule holds only
+/// device fails the line `net` (see `net_lines`). That rule holds only
 /// for a kernel of its own, which the lines before it prove: on the kernel
 /// of the host, a veth with no device can lead to the host.
 pub fn judge(text: &str, host: &Host) -> Result<(), String> {
