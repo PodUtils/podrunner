@@ -5,7 +5,8 @@
 //! drops to `none`.
 //!
 //! The test unit writes what it sees into its working directory: the boot
-//! id of its kernel, its network interfaces other than `lo`, whether a
+//! id of its kernel, its network interfaces that have a device (a NIC of
+//! the machine; see [`net_lines`]), whether a
 //! canary file that slots planted on the host is visible, whether the
 //! process of slots is visible, and whether the process and the file of a
 //! first unit that still runs are visible. The host and the unit share no
@@ -141,7 +142,7 @@ fn second(
     let script = format!(
         "{{ echo boot_id=$(cat /proc/sys/kernel/random/boot_id); \
          echo kernel=$(cat /proc/version); \
-         echo net=$(ls /sys/class/net 2>/dev/null | grep -vx lo | tr '\\n' ' '); \
+         {net} \
          if [ -e '{canary}' ]; then echo canary=visible; else echo canary=absent; fi; \
          if [ -d /proc/{me} ] && grep -q podrunner /proc/{me}/cmdline 2>/dev/null; then echo hostpid=visible; else echo hostpid=absent; fi; \
          f=podrunner-first; f=$f-{mark}; p=absent; \
@@ -150,12 +151,30 @@ fn second(
          }} > {RESULT}; \
          (command -v nc >/dev/null && nc -w 1 127.0.0.1 {port} </dev/null) >/dev/null 2>&1; \
          (command -v bash >/dev/null && bash -c 'exec 3<>/dev/tcp/127.0.0.1/{port}') >/dev/null 2>&1; true",
-        canary = canary.display()
+        canary = canary.display(),
+        net = net_lines("/sys/class/net")
     );
     let result = run(driver, payload, platform, unit, &script, scratch);
     let _ = std::fs::remove_file(&canary);
     let reached = listener.is_some_and(|l| l.accept().is_ok());
     Ok((result?, reached))
+}
+
+/// The shell lines that list the network interfaces in `class`, other
+/// than `lo`. The boundary is: the guest has no NIC that the machine gives
+/// it, so no path out but the channel. `net=` names each interface with a
+/// `device` link (a virtio-net or another NIC of the machine). A bridge, a
+/// veth, a dummy or a tun made in the guest (the `docker0` of an engine)
+/// has no device and, on a kernel of its own, no side on the host:
+/// `net_virtual=` names it for the log, and it does not fail the test. A
+/// `device` link that leads nowhere counts as a NIC: the test fails safe.
+pub(crate) fn net_lines(class: &str) -> String {
+    format!(
+        "n=; v=; for i in $(ls '{class}' 2>/dev/null); do [ \"$i\" = lo ] && continue; \
+         if [ -e '{class}'/\"$i\"/device ] || [ -L '{class}'/\"$i\"/device ]; \
+         then n=\"${{n:+$n }}$i\"; else v=\"${{v:+$v }}$i\"; fi; done; \
+         echo net=$n; echo net_virtual=$v;"
+    )
 }
 
 /// The root of the first unit, in which the test unit looks for its file: a
@@ -260,7 +279,10 @@ pub struct Host {
     pub version: String,
 }
 
-/// The verdict on the lines of the test unit.
+/// The verdict on the lines of the test unit. Only an interface with a
+/// device fails the line `net` (see [`net_lines`]). That rule holds only
+/// for a kernel of its own, which the lines before it prove: on the kernel
+/// of the host, a veth with no device can lead to the host.
 pub fn judge(text: &str, host: &Host) -> Result<(), String> {
     let get = |k: &str| text.lines().find_map(|l| l.strip_prefix(&format!("{k}="))).map(str::trim).unwrap_or("");
     let boot = get("boot_id");
@@ -273,7 +295,9 @@ pub fn judge(text: &str, host: &Host) -> Result<(), String> {
         return Err("the unit runs on the kernel of the host (the same kernel version)".into());
     }
     if !get("net").is_empty() {
-        return Err(format!("the unit has network interfaces: {}", get("net")));
+        let virt = get("net_virtual");
+        let also = if virt.is_empty() { String::new() } else { format!(" (not counted, with no device: {virt})") };
+        return Err(format!("the unit has network interfaces with a device: {}{also}", get("net")));
     }
     if get("canary") != "absent" {
         return Err("the unit sees a file of the host".into());
@@ -390,6 +414,8 @@ mod tests {
         let good = "boot_id=b2\nkernel=Linux version 6.1 (b) #2\nnet=\ncanary=absent\nhostpid=absent\nfirstproc=absent\nfirstfile=absent\n";
         let host = Host { boot_id: "b1".into(), version: "Linux version  6.12 (a) #1".into() };
         assert_eq!(judge(good, &host), Ok(()));
+        // T-509: an interface with no device does not count.
+        assert_eq!(judge(&good.replace("net=\n", "net=\nnet_virtual=docker0\n"), &host), Ok(()));
         for (from, to, why) in [
             ("boot_id=b2", "boot_id=b1", "same boot id"),
             // A system container: its own boot id, the kernel of the host.

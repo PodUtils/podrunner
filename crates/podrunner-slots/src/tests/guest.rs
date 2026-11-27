@@ -64,6 +64,8 @@ fn a_second_fake_unit_sees_the_first() {
     assert!(text.contains("firstproc=visible"), "{text}");
     assert!(text.contains("firstfile=visible"), "{text}");
     assert!(text.contains("hostpid=visible") || text.contains("hostpid=absent"), "{text}");
+    // The net lines run inside the whole script (T-509).
+    assert!(text.contains("\nnet=") && text.contains("\nnet_virtual="), "{text}");
 }
 
 /// The claim of `guest` is tested again when the driver file changes,
@@ -171,4 +173,62 @@ fn a_driver_comes_from_a_checked_place() {
     std::fs::set_permissions(open.join("d/podvm"), std::fs::Permissions::from_mode(0o755)).unwrap();
     std::os::unix::fs::symlink(open.join("d"), dir.join("linked")).unwrap();
     assert!(crate::config::check_driver(&dir.join("linked/podvm")).unwrap_err().contains("writable"));
+}
+
+/// The net lines of the guest script, run on a tree in the form of
+/// `/sys/class/net`: an entry is a NIC when it has `device`. The device
+/// of an entry is `""` (none), `"pci"` (a link to a directory) or
+/// `"lost"` (a link that leads nowhere).
+fn net_of(nics: &[(&str, &str)]) -> String {
+    let dir = TempDir::new();
+    let class = dir.0.join("class");
+    std::fs::create_dir_all(dir.0.join("devices/pci")).unwrap();
+    for (name, device) in nics {
+        std::fs::create_dir_all(class.join(name)).unwrap();
+        if !device.is_empty() {
+            std::os::unix::fs::symlink(format!("../../devices/{device}"), class.join(name).join("device")).unwrap();
+        }
+    }
+    let out = std::process::Command::new("sh")
+        .args(["-c", &crate::guest::net_lines(&class.display().to_string())])
+        .output()
+        .unwrap();
+    assert!(out.status.success(), "{out:?}");
+    String::from_utf8(out.stdout).unwrap()
+}
+
+/// The verdict on a guest with the net lines `net`, the other lines good.
+fn judge_net(net: &str) -> Result<(), String> {
+    let host = crate::guest::Host { boot_id: "b1".into(), version: "Linux version 6.12 (a) #1".into() };
+    let text = format!(
+        "boot_id=b2\nkernel=Linux version 6.1 (b) #2\n{net}canary=absent\nhostpid=absent\nfirstproc=absent\nfirstfile=absent\n"
+    );
+    crate::guest::judge(&text, &host)
+}
+
+/// T-509: the bridge of the engine in the guest (`docker0`) and the veth
+/// of its containers have no device: the guest still has no NIC.
+#[test]
+fn a_bridge_and_a_veth_made_in_the_guest_are_not_a_nic() {
+    let net = net_of(&[("lo", ""), ("docker0", ""), ("veth1234", "")]);
+    assert_eq!(judge_net(&net), Ok(()), "{net}");
+    for empty in [net_of(&[]), net_of(&[("lo", "")])] {
+        assert_eq!(judge_net(&empty), Ok(()), "{empty}");
+    }
+}
+
+/// T-509: a NIC that the machine gives the guest fails the test, also
+/// beside a bridge; the verdict names the NIC.
+#[test]
+fn a_nic_with_a_device_fails_beside_a_bridge() {
+    let net = net_of(&[("lo", ""), ("eth0", "pci"), ("docker0", "")]);
+    let line = net.lines().find_map(|l| l.strip_prefix("net=")).unwrap_or_default();
+    assert_eq!(line.trim(), "eth0", "{net}");
+    let why = judge_net(&net).unwrap_err();
+    assert!(why.contains("with a device: eth0 (not counted, with no device: docker0)"), "{why}");
+    let two = net_of(&[("eth0", "pci"), ("enp0s3", "pci")]);
+    assert!(judge_net(&two).unwrap_err().contains("enp0s3 eth0"), "{two}");
+    // A device link that leads nowhere still counts: the test fails safe.
+    let lost = net_of(&[("eth1", "lost")]);
+    assert!(judge_net(&lost).unwrap_err().contains("eth1"), "{lost}");
 }
