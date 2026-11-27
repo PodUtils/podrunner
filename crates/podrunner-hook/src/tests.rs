@@ -34,6 +34,7 @@ fn policy() -> Policy {
         registries: vec!["docker.io".into(), "ghcr.io".into()],
         work_root: "/home/runner/_work".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     }
 }
 
@@ -364,4 +365,51 @@ fn the_hosted_work_folder_is_the_mount_source() {
     assert_eq!(refused(hosted, &p), RefusalCode::ContainerOptionRefused);
     p.work_dir = String::new();
     assert_eq!(refused(container(), &p), RefusalCode::ContainerOptionRefused);
+}
+
+/// T-734: the hosted layout has the externals in the runner directory
+/// `/home/runner/actions-runner`, apart from the work folder
+/// `/home/runner/work`: both pass, read-only `/__e`; a source outside both
+/// is refused.
+#[test]
+fn the_externals_of_the_hosted_layout_are_a_mount_source() {
+    let roots = crate::policy::Roots::of("/home/runner/work", "/home/runner/actions-runner/externals");
+    let mut p = policy();
+    (p.work_root, p.work_dir, p.externals) = (roots.base, roots.work, roots.externals);
+    assert_eq!((p.work_root.as_str(), p.externals.as_str()), ("/home/runner", "actions-runner/externals"));
+    let hosted = container().to_string().replace("/home/runner/_work", "/home/runner/work");
+    let hosted = hosted.replace("/home/runner/externals", "/home/runner/actions-runner/externals");
+    let hosted: Value = serde_json::from_str(&hosted).unwrap();
+    let plan = check(&mut Gate::default(), &p, Command::PrepareJob, &prepare(hosted.clone())).unwrap();
+    let Plan::Prepare { job: Some(job), .. } = plan else { panic!("{plan:?}") };
+    assert!(job.mounts.iter().any(|m| m.target == "/__e" && m.read_only && m.source == "actions-runner/externals"));
+    let refused = |c: Value| code(check(&mut Gate::default(), &p, Command::PrepareJob, &prepare(c)));
+    for src in [
+        "/home/runner/externals",
+        "/home/runner/actions-runner",
+        "/home/runner/actions-runner/bin",
+        "/home/runner/actions-runner/externals.sock",
+        "/home/runner/actions-runner/externalsx",
+        "/home/runner/actions-runner/externals/../bin",
+    ] {
+        let mut c = hosted.clone();
+        c["systemMountVolumes"] = json!([read_only(src, "/__e")]);
+        assert_eq!(refused(c), RefusalCode::ContainerOptionRefused, "{src}");
+    }
+}
+
+/// T-734: the base of the roots holds the parents of the work folder and of
+/// the externals; a base of `/` is empty.
+#[test]
+fn the_roots_have_the_deepest_base_of_both() {
+    use crate::policy::Roots;
+    let t = |r: Roots| (r.base, r.work, r.externals);
+    let s = |b: &str, w: &str, e: &str| (b.to_string(), w.to_string(), e.to_string());
+    assert_eq!(t(Roots::of("/home/runner/work", "/home/runner/externals")), s("/home/runner", "work", "externals"));
+    assert_eq!(t(Roots::of("/home/runner/work/", "/home/runner/externals/")), s("/home/runner", "work", "externals"));
+    assert_eq!(t(Roots::of("/opt/r/w/x", "/opt/r/externals")), s("/opt/r", "w/x", "externals"));
+    assert_eq!(t(Roots::of("/home/runner/w", "/home/runnerx/externals")), s("/home", "runner/w", "runnerx/externals"));
+    assert_eq!(t(Roots::of("/work", "/r/externals")), s("", "", ""));
+    assert_eq!(t(Roots::of("/a", "/a/externals")), s("", "", ""));
+    assert_eq!(t(Roots::observed()), s("", "_work", "externals"));
 }

@@ -150,13 +150,20 @@ fn the_file_holds_the_work_folder_of_a_kind() {
         let e = check(&format!("incus]\nslots = 1\nwork_folder = \"{bad}\"")).unwrap_err();
         assert!(e.contains("[unit.incus] work_folder") && e.contains("give an absolute path"), "{bad}: {e}");
     }
-    // podvm: a folder in its runner directory, not one of the runner.
-    for good in ["runner_dir = \"/opt/r\"\nwork_folder = \"/opt/r/w/x\"", "work_folder = \"/home/runner/_work\""] {
+    // podvm: a folder in its runner directory, not one of the runner, or
+    // beside it (the hosted layout, T-734).
+    for good in [
+        "runner_dir = \"/opt/r\"\nwork_folder = \"/opt/r/w/x\"",
+        "work_folder = \"/home/runner/_work\"",
+        "runner_dir = \"/home/runner/actions-runner\"\nwork_folder = \"/home/runner/work\"",
+        "runner_dir = \"/home/runner/actions-runner\"\nwork_folder = \"/home/runner/a/b\"",
+        "work_folder = \"/home/runnerx/work\"",
+    ] {
         assert!(check(&format!("podvm]\nslots = 1\n{good}")).is_ok(), "{good}");
     }
     for bad in [
         "/home/runner",
-        "/home/runnerx/work",
+        "/home",
         "/work",
         "/home/runner/bin",
         "/home/runner/externals/x",
@@ -164,8 +171,18 @@ fn the_file_holds_the_work_folder_of_a_kind() {
         "/home/runner/.runner",
     ] {
         let e = check(&format!("podvm]\nslots = 1\nwork_folder = \"{bad}\"")).unwrap_err();
-        assert!(e.contains("give a folder in the runner directory \"/home/runner\""), "{bad}: {e}");
+        assert!(e.contains("give a folder in the runner directory \"/home/runner\" or beside it"), "{bad}: {e}");
     }
     let e = check("podvm]\nslots = 1\nrunner_dir = \"/opt/r\"\nwork_folder = \"/home/runner/work\"").unwrap_err();
-    assert!(e.contains("in the runner directory \"/opt/r\", such as \"/opt/r/work\""), "{e}");
+    assert!(e.contains("in the runner directory \"/opt/r\" or beside it, such as \"/opt/r/work\""), "{e}");
+    // A runner directory in `/` has no folder beside it, and the hosted
+    // layout keeps the code of the runner out.
+    let e = check("podvm]\nslots = 1\nrunner_dir = \"/r\"\nwork_folder = \"/w\"").unwrap_err();
+    assert!(e.contains("work_folder \"/w\""), "{e}");
+    for bad in ["/home/runner/actions-runner/externals", "/home/runner/actions-runner", "/home/runner"] {
+        let e =
+            check(&format!("podvm]\nslots = 1\nrunner_dir = \"/home/runner/actions-runner\"\nwork_folder = \"{bad}\""))
+                .unwrap_err();
+        assert!(e.contains("[unit.podvm] work_folder"), "{bad}: {e}");
+    }
 }

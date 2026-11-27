@@ -102,7 +102,8 @@ pub struct UnitConfig {
     /// `.runner` of the credential, so `GITHUB_WORKSPACE` is
     /// `FOLDER/REPO/REPO`. Absent: the hosted path `/home/runner/work`
     /// (`podvm`: `work` in its `runner_dir`). A podvm folder is in its
-    /// `runner_dir`: the container hooks mount only there.
+    /// `runner_dir` or beside it (T-734): the container hooks mount only
+    /// there.
     #[serde(default)]
     pub work_folder: Option<String>,
     /// The warm units of the kind (T-487): a count for an offer with no
@@ -173,8 +174,11 @@ const RUNNER_PARTS: [&str; 3] = ["bin", "externals", "hooks"];
 
 /// `work_folder` of each kind: an absolute path with no empty, `.`, `..`
 /// or control part, on a kind that takes it. A podvm folder is a folder in
-/// `runner_dir` (default `/home/runner`): the hook policy mounts only the
-/// work folder and the externals of that directory (T-590).
+/// `runner_dir` (default `/home/runner`), or beside it in its parent
+/// directory, as the hosted layout has it (`/home/runner/work` beside
+/// `/home/runner/actions-runner`, T-734): the hook policy mounts only the
+/// work folder and the externals of the runner, under the directory that
+/// holds both.
 pub(crate) fn check_work_folders<'a>(
     units: impl IntoIterator<Item = (&'a String, &'a UnitConfig)>,
 ) -> Result<(), String> {
@@ -189,19 +193,31 @@ pub(crate) fn check_work_folders<'a>(
                 "[unit.{name}] work_folder {f:?}: give an absolute path, such as \"/home/runner/work\""
             ));
         }
-        if name == "podvm" {
+        if name == "podvm" && !podvm_folder_ok(u.runner_dir.as_deref().unwrap_or(RUNNER_HOME), f) {
             let home = u.runner_dir.as_deref().unwrap_or(RUNNER_HOME).trim_end_matches('/');
-            let first = f.strip_prefix(home).and_then(|r| r.strip_prefix('/')).and_then(|r| r.split('/').next());
-            if first.is_none_or(|p| p.starts_with('.') || RUNNER_PARTS.contains(&p)) {
-                return Err(format!(
-                    "[unit.podvm] work_folder {f:?}: give a folder in the runner directory {home:?}, such as \
-                     \"{home}/work\" (not bin, externals, hooks or a name with a leading dot): the container hooks \
-                     mount only there"
-                ));
-            }
+            return Err(format!(
+                "[unit.podvm] work_folder {f:?}: give a folder in the runner directory {home:?} or beside it, such \
+                 as \"{home}/work\" (not bin, externals, hooks, a name with a leading dot, or a directory that \
+                 holds the runner directory): the container hooks mount only there"
+            ));
         }
     }
     Ok(())
+}
+
+/// A podvm work folder `f` for the runner directory `home`: in `home` and
+/// not a part of the runner, or beside `home` in its parent directory
+/// (not `/`).
+fn podvm_folder_ok(home: &str, f: &str) -> bool {
+    let home = home.trim_end_matches('/');
+    let under = |dir: &str| f.strip_prefix(dir).and_then(|r| r.strip_prefix('/')).filter(|r| !r.is_empty());
+    if let Some(rel) = under(home) {
+        let first = rel.split('/').next().unwrap_or("");
+        return !first.starts_with('.') && !RUNNER_PARTS.contains(&first);
+    }
+    let holds_home = home.strip_prefix(f).is_some_and(|r| r.is_empty() || r.starts_with('/'));
+    let parent = home.rsplit_once('/').map_or("", |x| x.0);
+    !holds_home && !parent.is_empty() && under(parent).is_some()
 }
 
 fn run_sh() -> Vec<String> {

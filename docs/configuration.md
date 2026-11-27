@@ -66,8 +66,10 @@ disk_max_bytes = 10737418240          # the bytes that a unit may write under it
                                       # path; podrunner writes it as workFolder into .runner before the start, so GITHUB_WORKSPACE
                                       # is FOLDER/REPO/REPO as on a hosted runner (T-541, T-590); a .runner that is not a JSON
                                       # object refuses the unit; absent: /home/runner/work (podvm: work in its runner_dir); podvm:
-                                      # a folder in runner_dir (not bin, externals, hooks or a dot name), as the container hooks
-                                      # mount only there; "/home/runner/_work" gives the folder of the mint
+                                      # a folder in runner_dir (not bin, externals, hooks or a dot name) or beside it in its parent
+                                      # (runner_dir = "/home/runner/actions-runner" with "/home/runner/work", T-734), as the
+                                      # container hooks mount only the work folder and runner_dir/externals; "/home/runner/_work"
+                                      # gives the folder of the mint
 # root_quota = true                  # incus only: the pool of incusd holds a size of a root disk (btrfs, zfs, lvm; not dir): each
                                       # instance gets a root disk of the lesser of disk_max_bytes and the disk limit of the offer (64 MiB at
                                       # least), a job past it gets ENOSPC, and the kind says `disk: enforced` (T-482); podvm refuses it on dir;

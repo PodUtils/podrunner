@@ -9,6 +9,9 @@ use podrunner_schema::{CredentialFile, Secret};
 /// The work folder in the runner directory, as the hook policy names it.
 pub const WORK_DIR: &str = "work";
 
+/// The runner of a unit when `--run-sh` names no other.
+pub const RUN_SH: &str = "/home/runner/run.sh";
+
 /// The runner directory of `run_sh`: `/home/runner` for
 /// `/home/runner/run.sh`.
 pub fn run_root(run_sh: &str) -> &str {
@@ -26,6 +29,14 @@ pub fn work_folder(run_sh: &str) -> String {
     let root = run_root(run_sh);
     let hosted = root.strip_prefix(RUNNER_HOME).is_some_and(|r| r.is_empty() || r.starts_with('/'));
     format!("{}/{WORK_DIR}", if hosted { RUNNER_HOME } else { root })
+}
+
+/// The roots of the hook policy of the runner of `run_sh`: its work folder
+/// and its externals, under the directory that holds both (T-734). The
+/// podvm driver takes each relative mount source under that directory.
+pub fn hook_roots(run_sh: &str) -> podrunner_hook::policy::Roots {
+    let externals = format!("{}/{}", run_root(run_sh), podrunner_hook::policy::EXTERNALS);
+    podrunner_hook::policy::Roots::of(&work_folder(run_sh), &externals)
 }
 
 /// Set `workFolder` of `.runner` in `files` to `folder`. An error names
@@ -76,6 +87,24 @@ mod tests {
         assert_eq!((v["workFolder"].as_str(), v["agentName"].as_str()), (Some("/home/runner/work"), Some("r")));
         let e = super::set(&mut [file("[\"SECRET\"]")], "/w").unwrap_err();
         assert!(e.contains("not a JSON object") && !e.contains("SECRET"), "{e}");
+    }
+
+    /// T-734: the hook policy holds the work folder and the externals of the
+    /// runner under one base, the runner directory of the podvm driver.
+    #[test]
+    fn the_hook_roots_hold_the_work_folder_and_the_externals() {
+        let roots = |run_sh: &str| {
+            let r = super::hook_roots(run_sh);
+            (r.base, r.work, r.externals)
+        };
+        let t = |b: &str, w: &str, e: &str| (b.to_string(), w.to_string(), e.to_string());
+        assert_eq!(roots("/home/runner/run.sh"), t("/home/runner", "work", "externals"));
+        assert_eq!(roots("run.sh"), t("/home/runner", "work", "externals"));
+        assert_eq!(roots("/home/runner/actions-runner/run.sh"), t("/home/runner", "work", "actions-runner/externals"));
+        assert_eq!(roots("/home/runner/a/b/run.sh"), t("/home/runner", "work", "a/b/externals"));
+        assert_eq!(roots("/opt/r/run.sh"), t("/opt/r", "work", "externals"));
+        // A base of `/` is no base: the unit refuses each container.
+        assert_eq!(roots("/run.sh"), t("", "", ""));
     }
 
     /// The unit of a job gets `.runner` with the hosted work folder; the

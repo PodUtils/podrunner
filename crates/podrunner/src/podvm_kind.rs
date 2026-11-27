@@ -15,10 +15,9 @@ use crate::serve::{Failure, fail};
 /// The runner directory of the image when `[unit.podvm]` names none.
 const RUNNER_DIR: &str = "/home/runner";
 
-/// The work root of the hook policy of the kind `name`: the runner
-/// directory that its driver uses (#279). Empty for a kind whose driver
-/// observes it.
-pub(crate) fn work_root(name: &str, u: &UnitConfig) -> String {
+/// The runner directory of the kind `name`: the directory that its driver
+/// uses (#279). Empty for a kind whose driver observes it.
+pub(crate) fn runner_dir(name: &str, u: &UnitConfig) -> String {
     match (&u.runner_dir, name) {
         (Some(d), _) => d.clone(),
         (None, "podvm") => RUNNER_DIR.into(),
@@ -26,18 +25,20 @@ pub(crate) fn work_root(name: &str, u: &UnitConfig) -> String {
     }
 }
 
-/// The work folder of the hook policy of the kind `name`, relative to its
-/// work root (T-590): `work` for the hosted path `/home/runner/work`, else
-/// the folder of the mint, `_work`. `check` keeps a podvm folder in its
-/// runner directory.
-pub(crate) fn work_dir(name: &str, u: &UnitConfig) -> String {
-    let root = work_root(name, u);
-    // An empty root: the driver observes the runner root, and the mint
-    // names the folder.
-    let folder = u.work_folder_of(name).filter(|_| !root.is_empty());
-    let rel =
-        folder.as_deref().and_then(|f| f.strip_prefix(root.trim_end_matches('/'))).and_then(|r| r.strip_prefix('/'));
-    rel.filter(|r| !r.is_empty()).unwrap_or(podrunner_hook::policy::MINT_WORK_DIR).to_string()
+/// The roots of the hook policy of the kind `name`: its work folder (T-590)
+/// and the externals of its runner directory, under the directory that
+/// holds both (T-734). The work folder is the hosted `work`, the key when it
+/// is given, else the folder of the mint, `_work`. A kind whose driver
+/// observes its runner directory takes the folder of the mint.
+pub(crate) fn roots(name: &str, u: &UnitConfig) -> podrunner_hook::policy::Roots {
+    use podrunner_hook::policy::{EXTERNALS, MINT_WORK_DIR, Roots};
+    let dir = runner_dir(name, u);
+    if dir.is_empty() {
+        return Roots::observed();
+    }
+    let dir = dir.trim_end_matches('/');
+    let work = u.work_folder_of(name).unwrap_or_else(|| format!("{dir}/{MINT_WORK_DIR}"));
+    Roots::of(&work, &format!("{dir}/{EXTERNALS}"))
 }
 
 /// The driver and the record of `[unit.podvm]`.
@@ -116,6 +117,13 @@ pub(crate) fn confine_proven(binary: &str, images: &str, podnet: Option<&str>, i
     Err(format!("the confine layer that a trusted source needs is not proven here: {why}"))
 }
 
+/// The runner directory of the podvm driver: the base of the relative mount
+/// sources of the hook policy (T-734), else the runner directory.
+fn mount_base(u: &UnitConfig) -> String {
+    let base = roots("podvm", u).base;
+    if base.is_empty() { runner_dir("podvm", u) } else { base }
+}
+
 pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn UnitDriver>, Capability), Failure> {
     let need = |v: &Option<String>, key: &str| {
         v.clone().ok_or_else(|| fail(Class::Config, format!("[unit.podvm] needs {key}")))
@@ -127,7 +135,7 @@ pub fn build(u: &UnitConfig, cfg: &Config, state: &Path) -> Result<(Arc<dyn Unit
     let images = PathBuf::from(need(&u.images, "images")?);
     let mut unit = podrunner_podvm::PodvmUnit::new(podvm, &state.join("podvm"), &images)
         .map_err(|e| fail(Class::Unsupported, format!("[unit.podvm]: {e}")))?
-        .with_runner_dir(u.runner_dir.as_deref().unwrap_or(RUNNER_DIR));
+        .with_runner_dir(&mount_base(u));
     if let Some(podnet) = &u.podnet {
         podrunner_slots::config::check_driver(Path::new(podnet))
             .map_err(|e| fail(Class::Config, format!("[unit.podvm] podnet: {e}")))?;
@@ -186,9 +194,10 @@ mod tests {
             .unwrap();
             cfg.unit["podvm"].clone()
         };
-        assert_eq!(super::work_root("podvm", &unit("")), "/home/runner");
-        assert_eq!(super::work_root("podvm", &unit("runner_dir = \"/r\"\n")), "/r");
-        assert_eq!(super::work_root("docker", &unit("")), "");
+        assert_eq!(super::roots("podvm", &unit("")).base, "/home/runner");
+        assert_eq!(super::roots("podvm", &unit("runner_dir = \"/r\"\n")).base, "/r");
+        assert_eq!(super::roots("docker", &unit("")).base, "");
+        assert_eq!(super::mount_base(&unit("")), "/home/runner");
     }
 
     /// T-590: the hook policy of a podvm kind mounts its work folder: the
@@ -203,13 +212,44 @@ mod tests {
             .unwrap();
             cfg.unit[name].clone()
         };
-        assert_eq!(super::work_dir("podvm", &unit("podvm", "")), "work");
-        assert_eq!(super::work_dir("podvm", &unit("podvm", "work_folder = \"/home/runner/_work\"\n")), "_work");
-        let opt = "runner_dir = \"/opt/r/\"\nwork_folder = \"/opt/r/w/x\"\n";
-        assert_eq!(super::work_dir("podvm", &unit("podvm", opt)), "w/x");
-        assert_eq!(super::work_dir("podvm", &unit("podvm", "runner_dir = \"/opt/r\"\n")), "work");
-        assert_eq!(super::work_dir("docker", &unit("docker", "")), "_work");
-        assert_eq!(super::work_dir("incus", &unit("incus", "")), "_work");
+        let work_dir = |name: &str, extra: &str| super::roots(name, &unit(name, extra)).work;
+        assert_eq!(work_dir("podvm", ""), "work");
+        assert_eq!(work_dir("podvm", "work_folder = \"/home/runner/_work\"\n"), "_work");
+        assert_eq!(work_dir("podvm", "runner_dir = \"/opt/r/\"\nwork_folder = \"/opt/r/w/x\"\n"), "w/x");
+        assert_eq!(work_dir("podvm", "runner_dir = \"/opt/r\"\n"), "work");
+        assert_eq!(work_dir("docker", ""), "_work");
+        assert_eq!(work_dir("incus", ""), "_work");
+        let r = super::roots("docker", &unit("docker", "runner_dir = \"/r\"\n"));
+        assert_eq!((r.base.as_str(), r.work.as_str(), r.externals.as_str()), ("/r", "_work", "externals"));
+    }
+
+    /// T-734: a podvm kind of the hosted layout (the runner in
+    /// `/home/runner/actions-runner`, the work folder `/home/runner/work`)
+    /// mounts both under `/home/runner`, and its driver resolves the
+    /// sources there; the old layout keeps `/home/runner`.
+    #[test]
+    fn the_hook_policy_of_the_hosted_layout_holds_the_externals_of_the_runner() {
+        let unit = |extra: &str| {
+            let cfg = podrunner_slots::config::Config::parse(&format!(
+                "host = \"h\"\n[unit.podvm]\nslots = 1\ncommand = [\"x\"]\n{extra}[pin]\n"
+            ))
+            .unwrap();
+            cfg.unit["podvm"].clone()
+        };
+        let hosted = unit("runner_dir = \"/home/runner/actions-runner\"\nwork_folder = \"/home/runner/work\"\n");
+        let r = super::roots("podvm", &hosted);
+        assert_eq!(
+            (r.base.as_str(), r.work.as_str(), r.externals.as_str()),
+            ("/home/runner", "work", "actions-runner/externals")
+        );
+        assert_eq!(super::mount_base(&hosted), "/home/runner");
+        let old = super::roots("podvm", &unit(""));
+        assert_eq!(
+            (old.base.as_str(), old.work.as_str(), old.externals.as_str()),
+            ("/home/runner", "work", "externals")
+        );
+        let own = unit("runner_dir = \"/opt/r\"\n");
+        assert_eq!(super::mount_base(&own), "/opt/r");
     }
 
     /// #271: an empty command, a relative runner_dir and a registry that is

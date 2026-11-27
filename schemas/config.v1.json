@@ -1011,7 +1011,7 @@
           "minimum": 0
         },
         "work_folder": {
-          "description": "`podvm`, `incus`, `microvm`: the work folder of the runner in each\nunit, an absolute path (T-541, T-590). podrunner writes it into\n`.runner` of the credential, so `GITHUB_WORKSPACE` is\n`FOLDER/REPO/REPO`. Absent: the hosted path `/home/runner/work`\n(`podvm`: `work` in its `runner_dir`). A podvm folder is in its\n`runner_dir`: the container hooks mount only there.",
+          "description": "`podvm`, `incus`, `microvm`: the work folder of the runner in each\nunit, an absolute path (T-541, T-590). podrunner writes it into\n`.runner` of the credential, so `GITHUB_WORKSPACE` is\n`FOLDER/REPO/REPO`. Absent: the hosted path `/home/runner/work`\n(`podvm`: `work` in its `runner_dir`). A podvm folder is in its\n`runner_dir` or beside it (T-734): the container hooks mount only\nthere.",
           "type": [
             "string",
             "null"

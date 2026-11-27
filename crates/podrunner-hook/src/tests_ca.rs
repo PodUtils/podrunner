@@ -40,6 +40,7 @@ fn policy() -> Policy {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     }
 }
 

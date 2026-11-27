@@ -80,6 +80,7 @@ fn the_output_of_a_step_comes_while_it_runs() {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let hook = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.join("logs"));
     let (sock, script) = (dir.join("ctl.sock"), dir.join("hook.sh"));

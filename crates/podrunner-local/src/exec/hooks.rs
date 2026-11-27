@@ -112,7 +112,7 @@ impl InUnit {
         let hook = podrunner_hook::unit::HookUnit::new(
             self.driver.clone(),
             id.clone(),
-            policy(message, &super::workdir::work_folder(&self.run_sh)),
+            policy(message, &self.run_sh),
             None,
             logs,
         );
@@ -129,16 +129,17 @@ impl InUnit {
 }
 
 /// The hook policy of a unit of the local mode for the job `message`: the
-/// registries of its images, and the work folder `folder` of the runner
-/// (T-590), `work` in its parent (T-609).
-fn policy(message: &Job, folder: &str) -> podrunner_hook::policy::Policy {
-    let (root, dir) = folder.rsplit_once('/').unwrap_or(("/home/runner", super::workdir::WORK_DIR));
+/// registries of its images, and the work folder (T-590, T-609) and the
+/// externals (T-734) of the runner of `run_sh`.
+fn policy(message: &Job, run_sh: &str) -> podrunner_hook::policy::Policy {
+    let roots = super::workdir::hook_roots(run_sh);
     podrunner_hook::policy::Policy {
         container: podrunner_schema::ContainerRoute::Hooks,
         shared_host_net: true,
         registries: registries(message),
-        work_root: root.into(),
-        work_dir: dir.into(),
+        work_root: roots.base,
+        work_dir: roots.work,
+        externals: roots.externals,
     }
 }
 
@@ -162,7 +163,7 @@ mod tests {
         let mut hook = podrunner_hook::unit::HookUnit::new(
             driver,
             id,
-            super::policy(&job(), "/home/runner/work"),
+            super::policy(&job(), "/home/runner/run.sh"),
             None,
             dir.join("logs"),
         );
@@ -194,25 +195,81 @@ mod tests {
         let image = format!("alpine@sha256:{}", "a".repeat(64));
         let mut job = podrunner_broker_fake::Job::scripts("a", &["true"]);
         job.overrides.insert("jobContainer".into(), serde_json::json!(image));
-        let prepare = |source: &str, folder: &str| {
+        let prepare = |source: &str, run_sh: &str| {
             let mount =
                 serde_json::json!({ "sourceVolumePath": source, "targetVolumePath": "/__w", "readOnly": false });
             let c = serde_json::json!({ "image": image, "systemMountVolumes": [mount] });
             let body = serde_json::json!({ "command": "prepare_job", "args": { "container": c, "services": [] } });
             Gate::default()
-                .check(&parse(Command::PrepareJob, body.to_string().as_bytes()).unwrap(), &super::policy(&job, folder))
+                .check(&parse(Command::PrepareJob, body.to_string().as_bytes()).unwrap(), &super::policy(&job, run_sh))
         };
-        let hosted = super::super::workdir::work_folder("/home/runner/run.sh");
-        assert!(prepare("/home/runner/work", &hosted).is_ok());
-        let e = prepare("/home/runner/_work", &hosted).unwrap_err();
+        let hosted = "/home/runner/run.sh";
+        assert!(prepare("/home/runner/work", hosted).is_ok());
+        let e = prepare("/home/runner/_work", hosted).unwrap_err();
         assert_eq!(e.code, podrunner_schema::RefusalCode::ContainerOptionRefused);
         // T-609: the policy follows the work folder of the runner of the unit.
-        let other = super::super::workdir::work_folder("/opt/r/run.sh");
-        assert!(prepare("/opt/r/work/r/r", &other).is_ok());
-        assert!(prepare("/opt/r/externals", &other).is_ok());
-        assert!(prepare("/home/runner/work", &other).is_err());
-        let layer = super::super::workdir::work_folder("/home/runner/actions-runner/run.sh");
-        assert!(prepare("/home/runner/work/r/r", &layer).is_ok());
+        let other = "/opt/r/run.sh";
+        assert!(prepare("/opt/r/work/r/r", other).is_ok());
+        assert!(prepare("/opt/r/externals", other).is_ok());
+        assert!(prepare("/home/runner/work", other).is_err());
+        let layer = "/home/runner/actions-runner/run.sh";
+        assert!(prepare("/home/runner/work/r/r", layer).is_ok());
+    }
+
+    /// T-734: the hosted layout (the runner in
+    /// `/home/runner/actions-runner`, the work folder `/home/runner/work`)
+    /// mounts the work folder at `/__w` and the externals of the runner at
+    /// `/__e`; a source outside both is refused. The old layout keeps
+    /// `/home/runner/externals`.
+    #[test]
+    fn the_hook_policy_mounts_the_externals_of_the_hosted_layout() {
+        use podrunner_hook::input::{Command, parse};
+        use podrunner_hook::policy::Gate;
+        let image = format!("alpine@sha256:{}", "a".repeat(64));
+        let mut job = podrunner_broker_fake::Job::scripts("a", &["true"]);
+        job.overrides.insert("jobContainer".into(), serde_json::json!(image));
+        let prepare = |mounts: &[(&str, &str, bool)], run_sh: &str| {
+            let mounts: Vec<_> = mounts
+                .iter()
+                .map(|(s, t, ro)| serde_json::json!({ "sourceVolumePath": s, "targetVolumePath": t, "readOnly": ro }))
+                .collect();
+            let c = serde_json::json!({ "image": image, "systemMountVolumes": mounts });
+            let body = serde_json::json!({ "command": "prepare_job", "args": { "container": c, "services": [] } });
+            let input = parse(Command::PrepareJob, body.to_string().as_bytes()).unwrap();
+            Gate::default().check(&input, &super::policy(&job, run_sh))
+        };
+        let hosted = "/home/runner/actions-runner/run.sh";
+        let job_mounts = [
+            ("/home/runner/work", "/__w", false),
+            ("/home/runner/work/_temp", "/__w/_temp", false),
+            ("/home/runner/work/_actions", "/__w/_actions", false),
+            ("/home/runner/work/_tool", "/__w/_tool", false),
+            ("/home/runner/actions-runner/externals", "/__e", true),
+            ("/home/runner/work/_temp/_github_home", "/github/home", false),
+        ];
+        let plan = prepare(&job_mounts, hosted).unwrap();
+        let podrunner_hook::policy::Plan::Prepare { job: Some(planned), .. } = plan else { panic!("{plan:?}") };
+        let sources: Vec<&str> = planned.mounts.iter().map(|m| m.source.as_str()).collect();
+        let want = ["work", "work/_temp", "work/_actions", "work/_tool", "actions-runner/externals"];
+        assert_eq!(sources, [&want[..], &["work/_temp/_github_home"]].concat());
+        for (source, target) in [
+            ("/home/runner/externals", "/__e"),
+            ("/home/runner/actions-runner", "/__w"),
+            ("/home/runner/actions-runner/bin", "/__w"),
+            ("/home/runner/actions-runner/_work", "/__w"),
+            ("/home/runner/actions-runner/.credentials_rsaparams", "/__w"),
+            ("/home/runner", "/__w"),
+            ("/home/runner/actions-runner/externalsx", "/__e"),
+        ] {
+            let e = prepare(&[(source, target, true)], hosted).unwrap_err();
+            assert_eq!(e.code, podrunner_schema::RefusalCode::ContainerOptionRefused, "{source}");
+        }
+        // The old layout: the runner in `/home/runner`.
+        let old = "/home/runner/run.sh";
+        assert!(
+            prepare(&[("/home/runner/work", "/__w", false), ("/home/runner/externals", "/__e", true)], old).is_ok()
+        );
+        assert!(prepare(&[("/home/runner/actions-runner/externals", "/__e", true)], old).is_err());
     }
 
     /// A made-up certificate: the containers read it, no TLS takes it.

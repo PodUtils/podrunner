@@ -151,6 +151,7 @@ fn container_job(state: &std::path::Path, binary: PathBuf, script: &str) -> Cont
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     // T-578: a CA bundle in a directory of the host out of the runner
     // directory (the volume base of the namespace rung), as the hooks of

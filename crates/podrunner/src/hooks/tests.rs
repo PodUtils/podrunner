@@ -65,6 +65,7 @@ fn a_unit_reaches_its_socket_through_the_relay() {
         registries: vec!["docker.io".into()],
         work_root: String::new(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let hooks = HooksOf::new([("fake".to_string(), policy)].into());
     let socket = dir.join("ctl").join("u-1.ctl");
@@ -122,6 +123,7 @@ fn close_returns_while_a_client_holds_half_a_request() {
         registries: vec![],
         work_root: String::new(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let hooks = Arc::new(HooksOf::new([("fake".to_string(), policy)].into()));
     let socket = dir.join("ctl").join("u-2.ctl");

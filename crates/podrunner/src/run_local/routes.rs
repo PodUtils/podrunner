@@ -195,6 +195,13 @@ fn in_podvm(a: &Args, state: &std::path::Path) -> Result<InUnit, Out> {
     }
     let podvm = Podvm { binary: binary.clone() };
     let mut unit = PodvmUnit::new(podvm, state, images).map_err(|e| fail(Class::Config, format!("podvm: {e}")))?;
+    // The driver takes each mount source of the hooks under the base of
+    // the hook policy (T-734).
+    use podrunner_local::exec::workdir::{RUN_SH, hook_roots};
+    let base = hook_roots(a.run_sh.as_deref().unwrap_or(RUN_SH)).base;
+    if !base.is_empty() {
+        unit = unit.with_runner_dir(&base);
+    }
     // The tar of an image stays for the next run (T-242).
     if let Ok(dir) = super::actions::user_cache("image-tars") {
         unit = unit.with_image_cache(&dir);

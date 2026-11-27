@@ -174,14 +174,16 @@ fn build_with(cfg: Config, state: &Path) -> Result<(Slots, restart::Rebuild), Fa
         } else {
             capability
         };
+        let roots = crate::podvm_kind::roots(name, u);
         policies.insert(
             name.clone(),
             podrunner_hook::policy::Policy {
                 container: capability.container,
                 shared_host_net: capability.net == "shared-host",
                 registries: u.registries.clone(),
-                work_root: crate::podvm_kind::work_root(name, u),
-                work_dir: crate::podvm_kind::work_dir(name, u),
+                work_root: roots.base,
+                work_dir: roots.work,
+                externals: roots.externals,
             },
         );
         // slots measures the disk of a kind with a bound (T-074), where the

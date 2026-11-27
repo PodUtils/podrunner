@@ -34,18 +34,70 @@ pub struct Policy {
     /// The registry hosts that images can come from (`docker.io`,
     /// `ghcr.io`).
     pub registries: Vec<String>,
-    /// The directory of the runner in the unit, as the runner names it:
-    /// each mount source is under it.
+    /// The directory in the unit, as the runner names it, that holds the
+    /// work folder and the externals of the runner: each mount source is
+    /// under it, and the unit takes each source relative to it.
     pub work_root: String,
     /// The work folder of the runner, relative to `work_root`: `_work`, or
     /// `work` for the hosted path `/home/runner/work` (T-590). A mount
-    /// source is under it or under the externals of the runner.
+    /// source is under it or under `externals`.
     pub work_dir: String,
+    /// The externals of the runner, relative to `work_root`: `externals`,
+    /// or `actions-runner/externals` for the hosted layout (T-734).
+    pub externals: String,
 }
 
 /// The work folder of a runner whose `.runner` names no other: `_work` under
 /// the runner root, as the mint writes it.
 pub const MINT_WORK_DIR: &str = "_work";
+
+/// The externals of a runner, in its runner directory. A container may
+/// mount files of the work folder and of the externals only; never the
+/// runner directory, which holds the runner files
+/// (`.credentials_rsaparams`, #227).
+pub const EXTERNALS: &str = "externals";
+
+/// The roots of a policy: `work_root`, `work_dir` and `externals`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Roots {
+    /// The directory that holds both; empty when it is not known.
+    pub base: String,
+    /// The work folder, relative to `base`.
+    pub work: String,
+    /// The externals of the runner, relative to `base`.
+    pub externals: String,
+}
+
+impl Roots {
+    /// The roots of a driver that tells its runner directory at the first
+    /// call: the folder of the mint and the externals in that directory.
+    pub fn observed() -> Roots {
+        Roots { base: String::new(), work: MINT_WORK_DIR.into(), externals: EXTERNALS.into() }
+    }
+
+    /// The roots of the work folder `work` and the externals `externals`,
+    /// two absolute paths. The base is the deepest directory that holds the
+    /// parents of both (T-734): `/home/runner` for `/home/runner/work` and
+    /// `/home/runner/actions-runner/externals`. A base of `/` is empty, and
+    /// then the unit refuses each container.
+    pub fn of(work: &str, externals: &str) -> Roots {
+        let parent = |p: &str| p.trim_end_matches('/').rsplit_once('/').map_or("", |x| x.0).to_string();
+        let (a, b) = (parent(work), parent(externals));
+        let mut base = String::new();
+        for (x, y) in a.split('/').zip(b.split('/')).skip(1) {
+            if x != y {
+                break;
+            }
+            base.push('/');
+            base.push_str(x);
+        }
+        let rel = |p: &str| {
+            let r = p.trim_end_matches('/').strip_prefix(base.as_str()).and_then(|r| r.strip_prefix('/'));
+            r.filter(|_| !base.is_empty()).unwrap_or("").to_string()
+        };
+        Roots { work: rel(work), externals: rel(externals), base }
+    }
+}
 
 /// A refusal: a code, and a short reason with no byte of the input.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -140,11 +192,6 @@ fn clean_abs(p: &str) -> bool {
         || p == "/"
 }
 
-/// The externals of the runner. A container may mount files of the work
-/// folder (`Policy::work_dir`) and of the externals only; never the runner
-/// root, which holds the runner files (`.credentials_rsaparams`, #227).
-const EXTERNALS: &str = "externals";
-
 fn env(vars: &BTreeMap<String, String>) -> Result<(), Refusal> {
     if vars.iter().any(|(k, v)| k.is_empty() || k.contains(['=', '\0']) || v.contains('\0')) {
         return refuse(RefusalCode::ContainerOptionRefused, "a bad environment variable");
@@ -222,7 +269,7 @@ fn mount(m: &MountVolume, table: &[&str], policy: &Policy) -> Result<Option<Moun
     let source = source.unwrap_or("");
     let root = policy.work_root.trim_end_matches('/');
     let rel = source.strip_prefix(root).and_then(|r| r.strip_prefix('/')).filter(|_| clean_abs(source));
-    let dirs = [policy.work_dir.trim_matches('/'), EXTERNALS];
+    let dirs = [policy.work_dir.trim_matches('/'), policy.externals.trim_matches('/')];
     let under = |r: &&str| dirs.iter().any(|d| !d.is_empty() && (*r == *d || r.starts_with(&format!("{d}/"))));
     let Some(rel) = rel.filter(|r| !r.ends_with(".sock")).filter(under) else {
         return refuse(RefusalCode::ContainerOptionRefused, "a mount source outside the unit");

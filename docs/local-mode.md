@@ -107,11 +107,11 @@ image` takes `--microvm` or `--incus` (each with the lowest version of
 podvm of `init = "image"` of its kind) and excludes `--engine`: the init of
 the image runs the engine of the image (T-609).
 
-A limit: on `--podvm`, the container hooks mount only the work directory
-and `externals` in the parent directory of the work directory. A runner in
-a directory under `/home/runner` (such as `/home/runner/actions-runner`)
-has its `externals` in another directory, so a job container of it is
-refused. A guest of `--microvm` or `--incus` runs no container hooks.
+On `--podvm`, the container hooks mount only the work directory and the
+`externals` of the runner directory of `--run-sh`. A runner in
+`/home/runner/actions-runner` mounts `/home/runner/work` at `/__w` and
+`/home/runner/actions-runner/externals` at `/__e` (T-734). A guest of
+`--microvm` or `--incus` runs no container hooks.
 
 On `--runner-dir`, the Pythons of `actions/setup-python` find
 `libpython` at the path of the tool cache of GitHub

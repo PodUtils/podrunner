@@ -71,6 +71,7 @@ fn each_command_reaches_the_fake_unit() {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
     let mut hook = |cmd: Command, body: Vec<u8>| u.hook(parse(cmd, &body).unwrap());
@@ -133,6 +134,7 @@ fn the_socket_of_one_unit_reaches_no_container_of_another() {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let ids = ["u-1", "u-2"].map(|n| UnitId::parse(n).unwrap());
     let _clean = Clean(fake.clone(), ids.to_vec(), dir.clone());
@@ -195,6 +197,7 @@ fn a_linked_mount_source_is_refused() {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy.clone(), Some(dir.join("runner")), dir.clone());
     let body = call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] }));
@@ -249,6 +252,7 @@ fn a_job_container_that_stops_at_its_start_is_named() {
         registries: vec!["docker.io".into()],
         work_root: "/home/runner".into(),
         work_dir: "_work".into(),
+        externals: "externals".into(),
     };
     let mut u = HookUnit::new(fake.clone(), id.clone(), policy, Some(dir.join("runner")), dir.clone());
     let body = call("prepare_job", json!({ "container": container("sh", &["-c", "exit 9"], "/__w"), "services": [] }));
@@ -307,6 +311,7 @@ fn a_failed_test_of_a_fake_unit_leaves_no_process_and_no_descriptor() {
             registries: vec!["docker.io".into()],
             work_root: "/home/runner".into(),
             work_dir: "_work".into(),
+            externals: "externals".into(),
         };
         let mut u = HookUnit::new(fake.clone(), id, policy, Some(dir.join("runner")), dir.clone());
         let body = call("prepare_job", json!({ "container": container("", &[], "/__w"), "services": [] }));

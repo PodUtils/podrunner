@@ -118,7 +118,7 @@ impl InUnit {
         InUnit {
             driver,
             image,
-            run_sh: "/home/runner/run.sh".into(),
+            run_sh: workdir::RUN_SH.into(),
             grace: Duration::from_secs(5),
             reach: Duration::from_secs(600),
             actions: None,
