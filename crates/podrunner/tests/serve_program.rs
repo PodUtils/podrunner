@@ -7,6 +7,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod scratch;
+use scratch::SpawnKilled;
 
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
@@ -50,8 +51,7 @@ fn serve_runs_a_job_of_a_trusted_program_source_on_a_fake_that_claims_confined()
         .env_remove("NOTIFY_SOCKET")
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+        .spawn_killed();
     let journal = || std::fs::read_to_string(state.join("journal.jsonl")).unwrap_or_default();
     let t = Instant::now();
     while !journal().contains("\"reported\"") {

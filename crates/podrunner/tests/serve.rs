@@ -8,6 +8,7 @@ use std::process::{Child, Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod scratch;
+use scratch::SpawnKilled;
 
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
@@ -39,14 +40,14 @@ impl Bed {
         self.dir.join("state")
     }
 
-    fn serve(&self, notify: Option<&Path>) -> Child {
+    fn serve(&self, notify: Option<&Path>) -> scratch::Killed {
         let mut c = Command::new(BIN);
         c.args(["serve", "--config"]).arg(self.dir.join("podrunner.toml")).arg("--state").arg(self.state());
         c.stdout(Stdio::null()).stderr(Stdio::piped()).env_remove("NOTIFY_SOCKET");
         if let Some(n) = notify {
             c.env("NOTIFY_SOCKET", n);
         }
-        c.spawn().unwrap()
+        c.spawn_killed()
     }
 
     fn cli(&self, args: &[&str]) -> std::process::Output {

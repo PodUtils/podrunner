@@ -170,12 +170,15 @@ jobs:
         run: |
           set -eu
           # The tests get a TMPDIR of their own and leave nothing in it
-          # (T-591).
-          # The default name (tmp.XXXXXXXXXX) has a dot and a random word:
-          # a unit under it must pass the secret check of pod-unit (T-602).
-          tmp=$(mktemp -d)
-          TMPDIR=$tmp cargo test --locked --workspace --all-features
-          left=$(ls -A "$tmp")
+          # (T-591). Its path has 100 bytes (T-740): a test that binds a
+          # Unix socket under TMPDIR fails here, not only on a host with a
+          # long TMPDIR (T-735). lab/long-tmp.sh makes the directory under
+          # $parent. The name of $parent (lt.XXXXXX) has a dot and a random
+          # word: a unit under it must pass the secret check of pod-unit
+          # (T-602).
+          parent=$(mktemp -d /tmp/lt.XXXXXX)
+          LAB_TMP_BASE="$parent/" sh scripts/lab/long-tmp.sh -- cargo test --locked --workspace --all-features
+          left=$(ls -A "$parent"/t*)
           if [ -n "$left" ]; then
             echo "the tests left these entries in their temp directory:"
             echo "$left"

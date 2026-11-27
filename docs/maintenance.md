@@ -496,7 +496,7 @@ Give each worker [a fresh brief](hosted-sessions.md#the-brief-of-a-worker).
   Run this from the worktree, with the session lock path in `CARGO_LOCK`:
 
   ```sh
-  flock "$CARGO_LOCK" sh -c 'find crates -name "*.rs" -exec touch {} + && cargo build -p CRATE'
+  flock -o "$CARGO_LOCK" sh -c 'find crates -name "*.rs" -exec touch {} + && cargo build -p CRATE'
   ```
 
   Replace `CRATE` with the crate of the task. Cargo uses file timestamps

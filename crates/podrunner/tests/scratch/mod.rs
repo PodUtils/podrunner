@@ -5,8 +5,9 @@
 // Each test target uses only a part of it.
 #![allow(dead_code)]
 
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::path::{Path, PathBuf};
+use std::process::{Child, Command, Output};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 pub struct Scratch(PathBuf);
@@ -60,5 +61,51 @@ impl AsRef<Path> for Scratch {
 impl Drop for Scratch {
     fn drop(&mut self) {
         let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
+/// A child that gets SIGKILL and a wait at the drop: a failed assertion
+/// leaves no `podrunner serve` that holds a descriptor of the test run
+/// (T-739). Each test that starts a serve takes `spawn_killed`.
+pub struct Killed(Option<Child>);
+
+impl Killed {
+    /// Wait for the end of the child and give its output, as
+    /// `Child::wait_with_output` does.
+    pub fn wait_with_output(mut self) -> std::io::Result<Output> {
+        self.0.take().expect("the child is there until the drop").wait_with_output()
+    }
+}
+
+impl Deref for Killed {
+    type Target = Child;
+    fn deref(&self) -> &Child {
+        self.0.as_ref().expect("the child is there until the drop")
+    }
+}
+
+impl DerefMut for Killed {
+    fn deref_mut(&mut self) -> &mut Child {
+        self.0.as_mut().expect("the child is there until the drop")
+    }
+}
+
+impl Drop for Killed {
+    fn drop(&mut self) {
+        if let Some(c) = self.0.as_mut() {
+            let _ = c.kill();
+            let _ = c.wait();
+        }
+    }
+}
+
+pub trait SpawnKilled {
+    /// Start the command with a `Killed` guard on the child.
+    fn spawn_killed(&mut self) -> Killed;
+}
+
+impl SpawnKilled for Command {
+    fn spawn_killed(&mut self) -> Killed {
+        Killed(Some(self.spawn().unwrap()))
     }
 }

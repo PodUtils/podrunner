@@ -7,6 +7,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod scratch;
+use scratch::SpawnKilled;
 
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
@@ -48,8 +49,7 @@ fn a_drained_source_takes_no_offer_and_the_others_go_on() {
         .env_remove("NOTIFY_SOCKET")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
+        .spawn_killed();
     let cli = |args: &[&str]| Command::new(BIN).args(args).arg("--state").arg(&state).output().unwrap();
     let t = Instant::now();
     // Drain `a` before its offer comes (4 s after the start).
@@ -122,8 +122,7 @@ fn a_stopped_source_ends_and_resume_builds_it_again() {
         .env_remove("NOTIFY_SOCKET")
         .stdout(Stdio::null())
         .stderr(std::fs::File::create(&err).unwrap())
-        .spawn()
-        .unwrap();
+        .spawn_killed();
     let cli = |args: &[&str]| Command::new(BIN).args(args).arg("--state").arg(&state).output().unwrap();
     let t = Instant::now();
     loop {

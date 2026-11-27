@@ -112,15 +112,19 @@ echo "static $st"; [ "$st" -eq 0 ] || { rc=1; tail -20 "$log/static.log"; }
 if [ "${1:-}" != notest ]; then
     # The tests get a temp directory of their own (T-591): other runs on
     # the host do not add to it, and each test removes what it makes.
-    # The default name (tmp.XXXXXXXXXX) has a dot and a random word: a
+    # Its path has 100 bytes (T-740): a test that binds a Unix socket
+    # under TMPDIR fails here, not only on a host with a long TMPDIR
+    # (T-735). lab/long-tmp.sh makes the directory under $parent.
+    # The name of $parent (lt.XXXXXX) has a dot and a random word: a
     # unit under it must pass the secret check of pod-unit (T-602).
-    tmp=$(mktemp -d) || exit 1
-    TMPDIR=$tmp timeout 1800 cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
+    parent=$(mktemp -d /tmp/lt.XXXXXX) || exit 1
+    LAB_TMP_BASE="$parent/" timeout 1800 sh scripts/lab/long-tmp.sh -- cargo test --workspace --all-features > "$log/test.log" 2>&1; t=$?
     # Not "failed": each summary line has "0 failed" and would hide the cause.
     echo "test $t"; [ "$t" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^failures:|^---- " "$log/test.log" | head -30; }
-    tmp_left "$tmp"; l=$?
+    tmp=$(ls -d "$parent"/t* 2> /dev/null | head -n 1)
+    if [ -n "$tmp" ]; then tmp_left "$tmp"; else echo "no temp directory of the tests"; false; fi; l=$?
     echo "tmp-left $l"; [ "$l" -eq 0 ] || rc=1
-    rm -rf "${tmp:?}"
+    rm -rf "${parent:?}"
     # The suites of level2.yml that need the official runner (T-256): with
     # PODRUNNER_RUNNER_DIR (an unpacked release of actions/runner), else a
     # line that says that they did not run.

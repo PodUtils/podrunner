@@ -14,6 +14,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use scratch::Scratch;
 
 mod scratch;
+use scratch::SpawnKilled;
 
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
@@ -165,8 +166,7 @@ fn serve_runs_the_other_kinds_and_names_the_microvm_kind_with_no_kvm() {
         .env_remove("NOTIFY_SOCKET")
         .stdout(Stdio::null())
         .stderr(Stdio::piped())
-        .spawn()
-        .unwrap();
+        .spawn_killed();
     let t = Instant::now();
     let v: serde_json::Value = loop {
         let o = Command::new(BIN).args(["status", "--json", "--state"]).arg(&state).output().unwrap();

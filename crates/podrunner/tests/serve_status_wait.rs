@@ -7,6 +7,7 @@ use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod scratch;
+use scratch::SpawnKilled;
 
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
@@ -49,8 +50,7 @@ fn status_answers_while_the_first_tick_waits_on_the_source() {
         .env_remove("NOTIFY_SOCKET")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
-        .spawn()
-        .unwrap();
+        .spawn_killed();
     let t = Instant::now();
     while !state.join("ctl.sock").exists() {
         assert!(t.elapsed() < Duration::from_secs(10), "no control socket");

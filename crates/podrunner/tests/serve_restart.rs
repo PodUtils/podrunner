@@ -6,10 +6,11 @@
 use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::{Command, Stdio};
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 mod scratch;
+use scratch::SpawnKilled;
 
 const BIN: &str = env!("CARGO_BIN_EXE_podrunner");
 
@@ -47,10 +48,10 @@ impl Bed {
         self.dir.join("state")
     }
 
-    fn serve(&self) -> Child {
+    fn serve(&self) -> scratch::Killed {
         let mut c = Command::new(BIN);
         c.args(["serve", "--config"]).arg(self.dir.join("podrunner.toml")).arg("--state").arg(self.state());
-        c.stdout(Stdio::null()).stderr(Stdio::piped()).env_remove("NOTIFY_SOCKET").spawn().unwrap()
+        c.stdout(Stdio::null()).stderr(Stdio::piped()).env_remove("NOTIFY_SOCKET").spawn_killed()
     }
 
     fn cli(&self, args: &[&str]) -> std::process::Output {
@@ -74,7 +75,7 @@ impl Bed {
     }
 
     /// Stop `serve` and give its stderr.
-    fn stop(&self, mut serve: Child) -> String {
+    fn stop(&self, mut serve: scratch::Killed) -> String {
         // SAFETY: kill(2) sends SIGTERM to the child that this test started.
         unsafe { libc::kill(serve.id() as libc::pid_t, libc::SIGTERM) };
         let t = Instant::now();

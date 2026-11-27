@@ -112,7 +112,10 @@ Include these items in each brief.
    Do not use `git stash`. Do not commit on `main` or push.
 4. Give the lead and all workers the same absolute lock path in the
    session scratch directory. Run each Cargo command with that lock
-   (`flock SCRATCH/cargo.lock cargo ...`). Set `CARGO_BUILD_JOBS=4`
+   (`flock -o SCRATCH/cargo.lock cargo ...`). The option `-o` closes the
+   lock descriptor in the command: a process that the command leaves
+   running (a `podrunner serve` of a failed test) does not hold the lock
+   (T-739). Set `CARGO_BUILD_JOBS=4`
    and `CARGO_INCREMENTAL=0`. Build only the crates of the task with
    `-p CRATE`. Use a worker-specific `CARGO_TARGET_DIR` outside the
    checkout when the disk has room. Check with `df -h /`. Follow
