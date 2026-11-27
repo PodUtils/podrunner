@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**728 entries: 64 open, 51 partial, 26 blocked, 587 done.**
+**729 entries: 64 open, 52 partial, 26 blocked, 587 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
 | P2 | 10 | 18 | 11 | 287 | 326 |
-| P3 | 53 | 10 | 13 | 198 | 274 |
-| **All** | 64 | 51 | 26 | 587 | 728 |
+| P3 | 53 | 11 | 13 | 198 | 275 |
+| **All** | 64 | 52 | 26 | 587 | 729 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -651,7 +651,7 @@ acceptance, later The crate dependencies later than v1.
 | [T-606](later.md) | P2 | S | later | defect | done | `podvm load` refuses the full hosted snapshot (85 layers): 16 locks at most |
 | [T-607](later.md) | P2 | S | later | defect | done | Two runs of `podrunner run` in two pid namespaces that share `/tmp` meet on one run id |
 | [T-608](later.md) | P3 | S | later | defect | open | A recovery run of `release.yml` on a tag builds the binaries again |
-| [T-609](later.md) | P3 | M | later | defect | open | `podrunner run` cannot run the hosted runner image as a hosted runner |
+| [T-609](later.md) | P3 | M | later | defect | partial | `podrunner run` cannot run the hosted runner image as a hosted runner |
 | [T-610](later.md) | P3 | S | later | defect | done | A layer of the tool cache of the snapshot names the version only |
 | [T-611](later.md) | P3 | S | later | defect | done | The use of an incus unit misses the last tick, and no live test checks an OOM kill on incus |
 | [T-612](later.md) | P3 | S | later | defect | open | Three live tests of the podvm kind fail on a root host |
@@ -776,3 +776,4 @@ acceptance, later The crate dependencies later than v1.
 | [T-731](later.md) | P3 | S | later | defect | done | A failed test of podrunner-microvm leaves its directory |
 | [T-732](later.md) | P3 | S | later | feature | blocked | The store refuses uses: $/PATH in a composite action |
 | [T-733](later.md) | P3 | S | later | defect | open | A test of the warm guest script fails with a long TMPDIR |
+| [T-734](later.md) | P3 | S | later | defect | open | The hook policy of a podvm unit refuses the externals of the hosted layout |

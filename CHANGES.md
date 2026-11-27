@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| command line (`run`), `run.toml` | New `--run-sh PATH` (the runner of the image; `/home/runner/actions-runner/run.sh` gives the hosted work folder `/home/runner/work`) and `--init image` (`--microvm`, `--incus`: boot the init of the image, as `[unit.KIND] init = "image"`); the keys `run-sh` and `init` of `run.toml`. | T-609 |
 | the local mode | `podrunner run` runs `uses: $/PATH` from the tree of the run (the job context has `workflow_ref`, `workflow_sha`, `workflow_repository` and `workflow_file_path`), and matches `actions/checkout` by any case of its owner and name. | T-726, T-729 |
 | command line (`run --log-dir`) | `job.log` ends with the lines that podrunner adds to the log of the job, each with the mark `[podrunner] `; a job whose runner sent no log gets these lines as its `job.log`. | T-723 |
 | the local mode, `podrunner-actions.lock` | A checkout in a composite action of the store gets the pinned tree of its static `repository` and `ref`; the run no longer fetches or locks an `actions/checkout` that an action of the store names. | T-718 |

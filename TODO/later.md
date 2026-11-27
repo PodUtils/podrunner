@@ -15372,7 +15372,7 @@ Two builds of one commit in a CI run give the same SHA-256 of each binary, or a 
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** partial
 
 ## Problem
 
@@ -15391,6 +15391,28 @@ The runner root has no way in either. `InUnit.run_sh` (`crates/podrunner-local/s
 ## Prove
 
 `cargo test -p podrunner-local workdir`: a runner at `/home/runner/actions-runner/run.sh` gets `/home/runner/work`; a test of the init option on the command line.
+
+State (2026-11-27, `d9efaf90` and `a7ca97eb`; tests on a development
+host, a real unit of the hosted image not run): `podrunner run --run-sh
+PATH` sets `InUnit.run_sh` (an absolute path in the unit, with no empty,
+`.`, `..` or control part, else exit 64; a unit kind is necessary).
+`workdir::work_folder` gives `/home/runner/work` for a runner in
+`/home/runner` or under it (the layer of T-541 has
+`/home/runner/actions-runner`, `scripts/hosted/runner-layer.py`), else
+`DIR/work`; the hook policy of a unit takes its root from that folder
+(it was fixed at `/home/runner`). `--init image` with `--microvm` or
+`--incus` gives the kind `init = "image"` through the same
+`incus_kind::build` and `microvm_kind::build` as `serve`, so no podvm
+change is necessary; it excludes `--engine`, and `doctor --run` asks for
+the lowest podvm of that init. Tests: `the_work_folder_is_in_the_runner_directory`
+and `the_runner_of_the_hosted_image_has_the_hosted_work_folder` (each
+fails on the old rule), and the tests of the options. Left: a
+`runner-image.yml` step that runs `podrunner run W.yml --incus PODVM
+--images STORE --image HOSTED@sha256:... --init image --run-sh
+/home/runner/actions-runner/run.sh` and checks
+`GITHUB_WORKSPACE=/home/runner/work/R/R` and
+`RUNNER_TOOL_CACHE=/opt/hostedtoolcache`; the podvm kind is T-734.
+
 
 # T-610: A layer of the tool cache of the snapshot names the version only
 
@@ -20583,4 +20605,39 @@ and make a path over the limit fail at once with its cause, not after
 
 `cargo test -p podrunner-microvm warm` passes with a TMPDIR of 100
 characters.
+
+# T-734: The hook policy of a podvm unit refuses the externals of the hosted layout
+
+**Source:** the worker of T-609, 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P3
+**Effort:** S
+**Status:** open
+
+## Problem
+
+On `--podvm` and on `[unit.podvm]`, the hook policy
+(`podrunner_hook::policy::Policy`) takes a mount source only under one
+root: the work folder and `externals` of that root. The hosted layout
+has `/home/runner/actions-runner/externals` and `/home/runner/work`, so
+the `/__e` mount of a job container is refused. Guests run no hooks, so
+`--incus` and `--microvm` are not touched.
+
+## Premise
+
+Read from `crates/podrunner-hook/src/policy.rs` and the hosted layout of
+T-541 by the worker of T-609 on 2026-11-27.
+
+## Approach
+
+Give `Policy` a root of `externals` apart from the work folder, take both
+from `run_root(run_sh)`, and add a test with the hosted layout.
+
+## Prove
+
+`cargo test -p podrunner-hook policy`: with the runner at
+`/home/runner/actions-runner` and the work folder `/home/runner/work`,
+the mounts of `/__w` and `/__e` of a job container pass, and a source
+outside both is refused.
 
