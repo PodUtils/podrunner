@@ -185,4 +185,21 @@ fn the_file_holds_the_work_folder_of_a_kind() {
                 .unwrap_err();
         assert!(e.contains("[unit.podvm] work_folder"), "{bad}: {e}");
     }
+    // T-737: `/` as the runner directory gives an empty base to the hook
+    // policy; refuse it by the name of the key, with or without a folder.
+    for extra in ["", "work_folder = \"/work\"", "work_folder = \"/home/runner/work\""] {
+        for dir in ["/", "//"] {
+            let e = check(&format!("podvm]\nslots = 1\nrunner_dir = \"{dir}\"\n{extra}")).unwrap_err();
+            assert!(e.contains("[unit.podvm] runner_dir") && e.contains("give a folder"), "{dir} {extra}: {e}");
+        }
+    }
+    for good in ["/home/runner", "/home/runner/actions-runner", "/r"] {
+        assert!(check(&format!("podvm]\nslots = 1\nrunner_dir = \"{good}\"")).is_ok(), "{good}");
+    }
+    assert!(
+        check("podvm]\nslots = 1\nrunner_dir = \"/home/runner/actions-runner\"\nwork_folder = \"/home/runner/work\"")
+            .is_ok()
+    );
+    // Another kind keeps its host path.
+    assert!(check("docker]\nslots = 1\nrunner_dir = \"/\"").is_ok());
 }

@@ -183,6 +183,15 @@ pub(crate) fn check_work_folders<'a>(
     units: impl IntoIterator<Item = (&'a String, &'a UnitConfig)>,
 ) -> Result<(), String> {
     for (name, u) in units {
+        // The roots of the hook policy of a podvm unit have an empty base for
+        // `/` (T-737): each container would be refused at the run.
+        if name == "podvm"
+            && u.runner_dir.as_deref().is_some_and(|d| d.starts_with('/') && d.trim_matches('/').is_empty())
+        {
+            return Err("[unit.podvm] runner_dir \"/\": give a folder, such as \"/home/runner\" (the container \
+                 hooks mount the work folder and the externals under it)"
+                .into());
+        }
         let Some(f) = &u.work_folder else { continue };
         if !WORK_FOLDER_KINDS.contains(&name.as_str()) {
             return Err(format!("[unit.{name}] work_folder: only the podvm, the incus and the microvm kinds take it"));
