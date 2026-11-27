@@ -183,7 +183,7 @@ impl Executor for InUnit {
         let n = NEXT_UNIT.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
         // A guest reaches the broker through its front: a unix socket, so
         // the host needs no AF_INET bind (T-220).
-        let broker_sock = std::env::temp_dir().join(format!("podrunner-local-broker-{}-{n}.sock", std::process::id()));
+        let broker_sock = crate::runkey::in_tmp(crate::runkey::BROKER, &format!("{n}.sock"));
         let fronted = self.guest || self.vnet.is_some();
         let _gone = Gone(fronted.then(|| broker_sock.clone()));
         let broker = match fronted {
@@ -228,7 +228,7 @@ impl Executor for InUnit {
         // egress socket of the hold (T-095).
         let containers = needs_containers(&message_copy) && !self.guest;
         let sockets = (containers || self.egress.is_some() || fronted)
-            .then(|| std::env::temp_dir().join(format!("podrunner-local-unit-{}-{id}", std::process::id())));
+            .then(|| crate::runkey::in_tmp(crate::runkey::UNIT_DIR, id.as_str()));
         if let Some(dir) = &sockets {
             crate::work::private_dir(dir)?;
         }
@@ -306,10 +306,7 @@ impl Executor for InUnit {
             _ => None,
         };
         // The work directory on the host, open to the runner user of the unit.
-        let work = self
-            .export
-            .as_ref()
-            .map(|_| std::env::temp_dir().join(format!("podrunner-run-export-{}-{id}", std::process::id())));
+        let work = self.export.as_ref().map(|_| crate::runkey::in_tmp(crate::runkey::EXPORT, id.as_str()));
         // 0777 for the runner user of the unit, in a parent at 0700 (T-408).
         let work = match work.as_deref().map(crate::work::export_dir).transpose() {
             Ok(w) => w,
@@ -400,8 +397,13 @@ impl Executor for InUnit {
         // so the stop of the hooks waits for no step (T-639).
         let had_hooks = hooks.is_some();
         let first = matches!(waited, Ok(None)).then(|| match cancelled {
-            // The end of a unit can take a while: say that the run waits (T-636).
-            true => stopping::wait_for(job.as_str(), id.as_str(), stopping::TICK, &|l| eprintln!("{l}"), destroy),
+            // The end of a unit can take a while: say that the run waits
+            // (T-636). At a signal the wait has a bound (T-716).
+            true => {
+                let bound = crate::cancel::by_signal().then(crate::cancel::unit_bound);
+                let pace = stopping::Pace { tick: stopping::TICK, bound, overdue: &|l| crate::cancel::end_now(&l) };
+                stopping::wait_for(job.as_str(), id.as_str(), pace, &|l| eprintln!("{l}"), destroy)
+            }
             false => destroy(),
         });
         let refusals = hooks.map(Hooks::stop).unwrap_or_default();

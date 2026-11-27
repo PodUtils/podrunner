@@ -1,5 +1,5 @@
-//! T-636: the files of the units of a dead run that have only its pid in
-//! their names go with the run; a zombie run is dead; the helper of a
+//! T-636, T-715: the files of the units of a dead run, which have the key
+//! of its process in their names, go with the run; a zombie run is dead; the helper of a
 //! third signal ends the runs that died.
 
 use super::*;
@@ -12,35 +12,41 @@ fn uid() -> u32 {
     unsafe { libc::getuid() }
 }
 
+/// The key of the run process `pid` of the pid namespace `ns` (T-715).
+fn key(ns: u64, pid: u32) -> String {
+    key_of(Some(Here { ns, pid }))
+}
+
 /// The socket directory, its logs, the socket of the broker and the export
-/// directory of a dead run go; the same names of another pid, of a pid
-/// that a run of another pid namespace has, a plain file at the name of a
-/// socket and a link stay.
+/// directory of a dead run go; the same files of another pid, of a run of
+/// another pid namespace with the same pid (T-715), of an older release
+/// (only a pid in the name), a plain file at the name of a socket and a
+/// link stay.
 #[test]
 fn the_unit_files_of_a_dead_run_go_with_it() {
     let tmp = std::env::temp_dir().join(format!("podrunner-stale-pid-test-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&tmp);
     let me = Here { ns: 77, pid: std::process::id() };
-    let (other, shared) = (DEAD + 1, DEAD + 2);
+    let (k, other, shared) = (key(77, DEAD), key(77, DEAD + 1), key(78, DEAD));
     for d in [
         format!("podrunner-run-units-77-{DEAD}-0/default/units/u-1"),
-        format!("podrunner-local-unit-{DEAD}-u-1"),
-        format!("podrunner-local-unit-{DEAD}-u-1.logs/ca"),
-        format!("podrunner-run-export-{DEAD}-u-1/work"),
+        format!("podrunner-local-unit-{k}-u-1"),
+        format!("podrunner-local-unit-{k}-u-1.logs/ca"),
+        format!("podrunner-run-export-{k}-u-1/work"),
         format!("podrunner-local-unit-{other}-u-1"),
-        format!("podrunner-run-tree-77-{shared}-0"),
-        format!("podrunner-run-tree-78-{shared}-0"),
+        format!("podrunner-run-tree-78-{DEAD}-0"),
         format!("podrunner-local-unit-{shared}-u-1"),
+        format!("podrunner-local-unit-{DEAD}-u-1"),
     ] {
         std::fs::create_dir_all(tmp.join(d)).unwrap();
     }
-    std::fs::write(tmp.join(format!("podrunner-local-unit-{DEAD}-u-1/ctl.sock")), "").unwrap();
-    let sock = tmp.join(format!("podrunner-local-broker-{DEAD}-1.sock"));
+    std::fs::write(tmp.join(format!("podrunner-local-unit-{k}-u-1/ctl.sock")), "").unwrap();
+    let sock = tmp.join(format!("podrunner-local-broker-{k}-1.sock"));
     drop(std::os::unix::net::UnixListener::bind(&sock).unwrap());
-    std::fs::write(tmp.join(format!("podrunner-local-broker-{DEAD}-2.sock")), "").unwrap();
-    std::os::unix::fs::symlink(&tmp, tmp.join(format!("podrunner-local-unit-{DEAD}-u-9"))).unwrap();
+    std::fs::write(tmp.join(format!("podrunner-local-broker-{k}-2.sock")), "").unwrap();
+    std::os::unix::fs::symlink(&tmp, tmp.join(format!("podrunner-local-unit-{k}-u-9"))).unwrap();
     let found = |uid| {
-        let mut f = of_pids(&tmp, uid, me, &dead_runs(&tmp, uid, Some(me)));
+        let mut f = of_keys(&tmp, uid, &dead_runs(&tmp, uid, Some(me)));
         f.sort();
         f
     };
@@ -50,21 +56,24 @@ fn the_unit_files_of_a_dead_run_go_with_it() {
         std::fs::read_dir(&tmp).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
     left.sort();
     let _ = std::fs::remove_dir_all(&tmp);
-    let want = [
-        format!("podrunner-local-broker-{DEAD}-1.sock"),
-        format!("podrunner-local-unit-{DEAD}-u-1"),
-        format!("podrunner-local-unit-{DEAD}-u-1.logs"),
-        format!("podrunner-run-export-{DEAD}-u-1"),
+    let mut want = vec![
+        format!("podrunner-local-broker-{k}-1.sock"),
+        format!("podrunner-local-unit-{k}-u-1"),
+        format!("podrunner-local-unit-{k}-u-1.logs"),
+        format!("podrunner-run-export-{k}-u-1"),
     ];
+    want.sort();
     assert_eq!(got, want.iter().map(|n| tmp.join(n)).collect::<Vec<_>>());
     assert!(none.is_empty(), "the files of another user: {none:?}");
-    let kept = [
-        format!("podrunner-local-broker-{DEAD}-2.sock"),
-        format!("podrunner-local-unit-{DEAD}-u-9"),
+    let mut kept = vec![
+        format!("podrunner-local-broker-{k}-2.sock"),
+        format!("podrunner-local-unit-{k}-u-9"),
         format!("podrunner-local-unit-{other}-u-1"),
         format!("podrunner-local-unit-{shared}-u-1"),
-        format!("podrunner-run-tree-78-{shared}-0"),
+        format!("podrunner-local-unit-{DEAD}-u-1"),
+        format!("podrunner-run-tree-78-{DEAD}-0"),
     ];
+    kept.sort();
     assert_eq!(left, kept, "the dead runs and only their files go");
 }
 
@@ -101,7 +110,7 @@ fn the_helper_ends_the_dead_runs() {
     let _ = std::fs::remove_dir_all(&tmp);
     let dead = tmp.join(format!("podrunner-run-units-{}-{DEAD}-0", h.ns));
     std::fs::create_dir_all(dead.join("default/units/u-1")).unwrap();
-    std::fs::create_dir_all(tmp.join(format!("podrunner-local-unit-{DEAD}-u-1"))).unwrap();
+    std::fs::create_dir_all(tmp.join(format!("podrunner-local-unit-{}-u-1", key(h.ns, DEAD)))).unwrap();
     let code = helper(&a(&[tmp.to_str().unwrap(), &DEAD.to_string()]));
     let left = std::fs::read_dir(&tmp).unwrap().count();
     let _ = std::fs::remove_dir_all(&tmp);

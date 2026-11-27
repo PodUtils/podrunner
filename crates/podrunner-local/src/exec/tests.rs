@@ -279,7 +279,7 @@ fn a_unit_exports_its_work_directory() {
     let e = exec.run(&job, Job::scripts("a", &["true"]), Duration::from_secs(60)).unwrap_err();
     let unit = unit_of(&e);
     assert!(dir.join("out/build.0").is_dir(), "the export of a failed job");
-    let scratch = std::env::temp_dir().join(format!("podrunner-run-export-{}-{unit}", std::process::id()));
+    let scratch = crate::runkey::in_tmp(crate::runkey::EXPORT, unit.as_str());
     assert!(!scratch.exists(), "the work directory goes");
     let _ = std::fs::remove_dir_all(&dir);
 }

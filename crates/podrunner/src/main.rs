@@ -4,7 +4,16 @@ use std::io::Write;
 use std::process::ExitCode;
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    // A test of `run` sets a short bound on the wait for a unit at a
+    // cancel with a private first argument (T-716).
+    if let [flag, ms, ..] = args.as_slice()
+        && flag == podrunner_local::cancel::BOUND_FLAG
+        && let Ok(ms) = ms.parse::<u64>()
+    {
+        podrunner_local::cancel::set_unit_bound_ms(ms);
+        args.drain(..2);
+    }
     // A probe child of `doctor` starts this binary again with the private
     // flag first; it runs one probe and nothing else.
     if let [flag, name, ..] = args.as_slice()

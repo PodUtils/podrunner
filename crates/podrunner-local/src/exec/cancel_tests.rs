@@ -112,7 +112,7 @@ fn blocked(dir: &std::path::Path, driver: Arc<dyn UnitDriver>, mark: &str) -> (I
         },
     });
     let runner = dir.join("run.sh");
-    let socket = std::env::temp_dir().join(format!("podrunner-local-unit-{}-", std::process::id()));
+    let socket = crate::runkey::in_tmp(crate::runkey::UNIT_DIR, "");
     std::fs::write(
         &runner,
         format!(

@@ -24,6 +24,7 @@ pub mod mirror;
 pub mod oidc;
 mod open;
 pub mod rerun;
+pub mod runkey;
 pub mod secrets;
 mod source;
 pub mod store;

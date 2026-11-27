@@ -81,6 +81,47 @@ fn say(m: &[u8]) {
     unsafe { libc::write(2, m.as_ptr().cast(), m.len()) };
 }
 
+/// The bound of the wait for the end of one unit at a cancel by a signal
+/// (T-716, a call in `docs/decisions.md`): the stop time of a cancelled
+/// job of GitHub with a margin; the end of a podvm unit takes 15 s or more.
+/// A unit that does not go in this time does not go by itself.
+pub const UNIT_BOUND: std::time::Duration = std::time::Duration::from_secs(120);
+
+/// A shorter bound in milliseconds, 0 for none: only the private first
+/// argument [`BOUND_FLAG`] sets it.
+static BOUND_MS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// The private first argument of the binary that sets a short bound for a
+/// test (`--podrunner-unit-bound-ms MS`). No document names it.
+pub const BOUND_FLAG: &str = "--podrunner-unit-bound-ms";
+
+/// Set the bound of [`unit_bound`] to `ms` milliseconds, for a test.
+pub fn set_unit_bound_ms(ms: u64) {
+    BOUND_MS.store(ms, Ordering::SeqCst);
+}
+
+/// The bound of the wait for one unit at a cancel: [`UNIT_BOUND`], or the
+/// bound of [`set_unit_bound_ms`].
+pub fn unit_bound() -> std::time::Duration {
+    match BOUND_MS.load(Ordering::SeqCst) {
+        0 => UNIT_BOUND,
+        ms => std::time::Duration::from_millis(ms),
+    }
+}
+
+/// End the run now, as a third signal does, after the line `why` (T-716):
+/// a unit did not go in its bound. The helper ends the units when the
+/// process is gone. The exit code is 130, the code of a cancel.
+pub fn end_now(why: &str) -> ! {
+    say(format!("{}\n", why.trim_end()).as_bytes());
+    end_at_once()
+}
+
+/// A signal stopped the run: not a change of the tree, not `fail-fast`.
+pub fn by_signal() -> bool {
+    COUNT.load(Ordering::SeqCst) > 0
+}
+
 /// The third signal: end each runner group, start the helper, and end.
 /// Each call is async-signal-safe.
 fn end_at_once() -> ! {
