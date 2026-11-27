@@ -20787,7 +20787,7 @@ the error when it is still refused.
 **Milestone:** later
 **Priority:** P3
 **Effort:** S
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -20809,6 +20809,18 @@ worker of T-734 on 2026-11-27.
 
 `cargo test -p podrunner-slots unit_config`: `runner_dir = "/"` is
 refused by name; `/home/runner` and `/home/runner/actions-runner` pass.
+
+## Done
+
+2026-11-27, `b4e6580a` (tests on a development host). `check` refuses
+`[unit.podvm] runner_dir = "/"` (also `//`) by the name of the key, with
+the fix in the message, exit 78; the refusal comes before the checks of
+`work_folder` and holds with no `work_folder`. `/home/runner`, `/r` and
+`/home/runner/actions-runner` with `work_folder = "/home/runner/work"`
+pass; the other kinds keep `runner_dir` as a host path. Test:
+`tests::work_folder::the_file_holds_the_work_folder_of_a_kind` (it fails
+on the old code).
+
 
 # T-738: A long TMPDIR fails the sockets of podrunner with no path and no fix
 
