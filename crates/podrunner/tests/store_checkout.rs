@@ -9,6 +9,9 @@ mod scratch;
 
 use std::path::{Path, PathBuf};
 
+/// The tests of this file share one runner directory: one runs at a time.
+static RUNNER: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// A composite action of the store that checks out the tree of a tag of
 /// the repository of the run and a second repository at a tag, and names
 /// a nested composite action of the store.
@@ -64,6 +67,7 @@ fn put(scratch: &Path, name: &str, file: &str, text: &str) -> String {
 /// `podrunner run` of `co.yml` of `repo`, offline, with each `local` as a
 /// `--local-repository`: the output, and the text of all its logs.
 fn run(scratch: &Path, repo: &Path, local: &[String]) -> (podrunner::cli::Out, String) {
+    let _one = RUNNER.lock().unwrap_or_else(|e| e.into_inner());
     let dir = std::env::var("PODRUNNER_RUNNER_DIR").expect("PODRUNNER_RUNNER_DIR");
     let logs = scratch.join("logs");
     let mut args: Vec<String> = [

@@ -126,7 +126,7 @@ if [ "${1:-}" != notest ]; then
     if [ -n "${PODRUNNER_RUNNER_DIR:-}" ]; then
         { timeout 1200 cargo test -q -p podrunner-broker-fake --test runner --test container -- --ignored --test-threads 1 &&
             timeout 1200 cargo test -q -p podrunner-local --test runner --test actions -- --ignored --test-threads 1 &&
-            timeout 1800 cargo test -q -p podrunner --test local --test local_subdir --test local_proxy -- --ignored --test-threads 1 &&
+            timeout 1800 cargo test -q -p podrunner --test local --test local_subdir --test local_proxy --test store_checkout -- --ignored --test-threads 1 &&
             timeout 2400 cargo test -q -p podrunner --test parity -- --ignored --test-threads 1; } > "$log/runner.log" 2>&1; r=$?
         echo "runner $r"; [ "$r" -eq 0 ] || { rc=1; grep -E "FAILED|panicked|^error|^---- " "$log/runner.log" | head -30; }
     else
