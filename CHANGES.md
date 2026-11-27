@@ -16,6 +16,7 @@ until its row is here and `sh scripts/check-notes.sh --stamp` ran.
 
 | Contract | Change | Entry |
 | --- | --- | --- |
+| the local mode | A checkout in a local composite action gets the pinned tree of its static `repository` and `ref`; the fake broker has the route `GET /_checkout/pin/KEY`. | T-713 |
 | command line (`run`), the `--web` view | SIGHUP prints the stopping lines; a cancel prints the lines of each unit that goes; a third signal prints `ended at once`, and a helper removes the units and the files of the run; `state.json` of `--web` has `stopping`. No exit code changes. | T-636 |
 | command line | A flag that takes one value, given two times, is refused with exit 64 and its name, for each command (`run` and `doctor --run` check the command line only; repeating flags such as `--secret`, `--allow`, `--var` and `--platform` keep each value). | T-711 |
 | `serve`, `doctor` | The `no-tier-served` line names each source, each kind and its cause, each claim that the start of `serve` lowered, and the missing keys of `[unit.podvm]`. | T-712 |

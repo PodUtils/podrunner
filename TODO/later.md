@@ -11909,6 +11909,13 @@ Gap: `pod-fake-github` of podcrates `v0.86.0` sends only `run:` steps
 `services:` job runs yet (T-707, COORD-145, #373). Next: a green
 `user-gate.yml` run with this check.
 
+State (2026-11-27, `user-gate.yml` 45916111280 on `116c8aaa`; proven in
+CI on GitHub-hosted runners): each lane is green but the check
+`serve:job:engine:microvm`, which failed: `serve` lowered the microvm
+kind to boundary None at its start, because the guest self-test counts
+`docker0` of the bundled engine as a NIC (T-717). Next: T-717, then the
+lane again.
+
 
 # T-510: G-39: one record of each change of a contract that githome reads
 
@@ -19555,7 +19562,7 @@ The text of `status` waits for `status.v1` (T-714).
 **Milestone:** later
 **Priority:** P3
 **Effort:** M
-**Status:** open
+**Status:** done
 
 ## Problem
 
@@ -19581,6 +19588,26 @@ the workflow; then let the stand-in ask the broker for the tarball of
 `cargo test -p podrunner-local --test actions -- --ignored`: a local
 composite that checks out a second local repository at a tag gets the
 tree of that tag.
+
+## Done
+
+2026-11-27, `0d7280a9` and `9c1d2fb8` (tests on a development host, with
+runner 2.338.2; a guest unit not run). The run pins the trees of the
+static `repository` and `ref` of each checkout in a local composite
+action, also a nested one (`composites::local_trees`,
+`checkout::action_asks`). The stand-in asks the fake broker for `GET
+/_checkout/pin/KEY` (with the job token) and checks out that tree; the
+route gives 404 for no pin, a bad escape, a value that is not a commit or
+a repository that is not a name. An expression, or a value with no pin,
+fails the step with the fix. The broker now gets the pins also in a run
+with no store. Tests: the e2e
+`a_checkout_in_a_local_action_gets_another_repository_and_ref` (it fails
+on the old code), `the_route_of_a_pinned_tree`,
+`the_trees_of_the_checkouts_of_local_actions`,
+`the_refs_of_the_checkouts_of_local_actions` and the stand-in e2e; three
+planted defects each fail a test. A checkout in a composite action of the
+store is T-718.
+
 
 # T-714: The text of status names no cause of no-tier-served
 
@@ -19685,3 +19712,71 @@ hand-over, and end with the exit code of a cancel.
 and a short bound from the test: the run ends after the bound, the
 helper removes the unit, and nothing stays.
 
+# T-717: The guest self-test counts the bridge of the engine as a NIC
+
+**Source:** `user-gate.yml` run 45916111280 (#376), 2026-11-27
+**Category:** defect
+**Milestone:** later
+**Priority:** P2
+**Effort:** S
+**Status:** open
+
+## Problem
+
+With a microvm pin of the full image and `container_engine = true`,
+`serve` lowers the microvm kind to boundary None at its start: "the
+claim of guest drops to none: the unit has network interfaces: docker0".
+The guest self-test lists each name of `/sys/class/net` but `lo`, so the
+bridge that the bundled dockerd makes inside the guest fails it. No job
+with an engine runs through `serve` on microvm (the check
+`serve:job:engine:microvm` of T-509).
+
+## Premise
+
+Proven in CI on GitHub-hosted runners: lane `serve-incus-kvm` of
+`user-gate.yml` run 45916111280, log `job-engine-microvm-serve.err`.
+Read from `crates/podrunner-slots/src/guest.rs` (`judge`) on 2026-11-27.
+
+## Approach
+
+The test proves that the guest has no NIC that QEMU gives it: list only
+the interfaces with a device (`/sys/class/net/IF/device`), print the
+virtual names apart, and fail only on a device. Keep the rule of each
+kind that needs the old one.
+
+## Prove
+
+`cargo test -p podrunner-slots guest`: a guest with `docker0` and a veth
+and no device passes; `eth0` with a device fails and is named; then a
+green lane `serve-incus-kvm`.
+
+# T-718: A checkout in a composite action of the store gets no pinned tree
+
+**Source:** the worker of T-713, 2026-11-27
+**Category:** feature
+**Milestone:** later
+**Priority:** P3
+**Effort:** M
+**Status:** open
+
+## Problem
+
+The run pins the trees of the checkouts of local composite actions
+(T-713), but not of a composite action from the store: such a checkout
+with static values gets no pin and fails with the fix of T-713.
+
+## Premise
+
+Read from `crates/podrunner/src/run_local/composites.rs` by the worker of
+T-713 on 2026-11-27.
+
+## Approach
+
+Read the `action.yml` of each composite action of the store
+(`pod-actions-store` `composite_uses` reads them already) and pin the
+trees of its checkout steps as for a local action.
+
+## Prove
+
+`cargo test -p podrunner --test local`: a composite of the store with a
+checkout of a tag gets the tree of that tag.

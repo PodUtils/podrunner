@@ -1,6 +1,6 @@
 # Progress
 
-`TODO/INDEX.md` holds 711 entries: 67 open, 51 partial, 22 blocked, 571 done.
+`TODO/INDEX.md` holds 713 entries: 68 open, 51 partial, 22 blocked, 572 done.
 
 ## State
 
@@ -66,10 +66,10 @@
 Finish each entry, close it in place, change this page in the same commit,
 then take the next one.
 
-1. Read the runs of #376: `runner-image.yml` with the fix of the incus
-   test of `cpu_s`, then `user-gate.yml` with the check
-   `serve:job:engine:microvm` of T-509.
-   Merge the workers of T-713, and of T-610 with T-603.
+1. T-717 (P2): the guest self-test counts the bridge of the engine as a
+   NIC; it blocks `serve:job:engine:microvm` (T-509). Then request the
+   lane again. Merge the workers of T-715 with T-716, and of T-610 with
+   T-603.
 2. The rest of the cache work in T-480 waits for podvm: T-648 (COORD-143,
    #371), T-650 (COORD-141, #368).
 3. The open asks of githome and cfb: T-512 (P0): write
@@ -82,7 +82,7 @@ then take the next one.
 4. Keep the G-09 line on #66 current with the CI proof of Docker build
    and Docker-in-Docker, the bundled engine (done), and the live check
    (T-040).
-5. The local P3 entries: T-656, T-658, T-659, T-603 (step 1), T-610, T-609, T-713, T-715, T-716. The P3 groups of the QA rounds: T-308, T-316, T-323,
+5. The local P3 entries: T-656, T-658, T-659, T-603 (step 1), T-610, T-609, T-715, T-716, T-718. The P3 groups of the QA rounds: T-308, T-316, T-323,
    T-331, T-339, T-637, T-701.
 6. The live reports (GitHub #74, #75): T-192 (P1, partial), T-181, T-186,
    T-175 (partial; its step on the test organization is next).

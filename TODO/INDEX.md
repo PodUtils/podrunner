@@ -36,15 +36,15 @@ acceptance, later The crate dependencies later than v1.
 
 ## Entries
 
-**711 entries: 67 open, 51 partial, 22 blocked, 571 done.**
+**713 entries: 68 open, 51 partial, 22 blocked, 572 done.**
 
 | Priority | open | partial | blocked | done | total |
 | --- | --- | --- | --- | --- | --- |
 | P0 | 1 | 0 | 0 | 2 | 3 |
 | P1 | 0 | 23 | 2 | 100 | 125 |
-| P2 | 10 | 18 | 11 | 285 | 324 |
-| P3 | 56 | 10 | 9 | 184 | 259 |
-| **All** | 67 | 51 | 22 | 571 | 711 |
+| P2 | 11 | 18 | 11 | 285 | 325 |
+| P3 | 56 | 10 | 9 | 185 | 260 |
+| **All** | 68 | 51 | 22 | 572 | 713 |
 
 | ID | Priority | Effort | Milestone | Category | Status | Item |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -755,7 +755,9 @@ acceptance, later The crate dependencies later than v1.
 | [T-710](later.md) | P3 | S | later | defect | done | A test of the cache compares two times of the wall clock |
 | [T-711](later.md) | P3 | S | later | defect | done | A flag given twice takes its first value with no word |
 | [T-712](later.md) | P3 | S | later | defect | done | serve names no kind and no cause in no-tier-served |
-| [T-713](later.md) | P3 | M | later | feature | open | A checkout of another repository or ref in a local action fails |
+| [T-713](later.md) | P3 | M | later | feature | done | A checkout of another repository or ref in a local action fails |
 | [T-714](later.md) | P3 | S | later | feature | blocked | The text of status names no cause of no-tier-served |
 | [T-715](later.md) | P3 | S | later | defect | open | Two local runs of the same pid share the names of their unit files |
 | [T-716](later.md) | P3 | S | later | defect | open | The wait of a cancel for a unit has no bound |
+| [T-717](later.md) | P2 | S | later | defect | open | The guest self-test counts the bridge of the engine as a NIC |
+| [T-718](later.md) | P3 | M | later | feature | open | A checkout in a composite action of the store gets no pinned tree |
