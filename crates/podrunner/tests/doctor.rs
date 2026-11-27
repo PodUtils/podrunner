@@ -312,10 +312,16 @@ fn doctor_run_and_run_agree_on_the_podnet_hold() {
             }
             a
         };
-        let doctor = podrunner::cli::run(&common("doctor"));
-        let run = podrunner::cli::run(&common("run"));
-        let row = doctor.stdout.lines().find(|l| l.contains(" podnet:")).unwrap_or("").to_string();
-        (row, run.stderr)
+        // A short TMPDIR: under a long one, `run` refuses the socket paths
+        // of the hold before it probes podnet (T-738).
+        let tmp = Scratch::short("doctor-podnet-tmp");
+        let child = |verb: &str| {
+            Command::new(env!("CARGO_BIN_EXE_podrunner")).args(common(verb)).env("TMPDIR", &*tmp).output().unwrap()
+        };
+        let (doctor, run) = (child("doctor"), child("run"));
+        let row =
+            String::from_utf8_lossy(&doctor.stdout).lines().find(|l| l.contains(" podnet:")).unwrap_or("").to_string();
+        (row, String::from_utf8_lossy(&run.stderr).into_owned())
     };
     // netns available, seccomp unavailable: both refuse, with one text.
     let held = r#"{"netns":{"level":"enforced"},"seccomp":{"level":"unavailable"}}"#;
