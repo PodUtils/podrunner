@@ -145,7 +145,9 @@ fn run_sh(v: String) -> Result<String, String> {
     let bad = |p: &str| p.is_empty() || p == "." || p == ".." || p.chars().any(char::is_control);
     match v.strip_prefix('/') {
         Some(rest) if !rest.split('/').any(bad) => Ok(v),
-        _ => Err(format!("--run-sh {v:?}: give an absolute path in the image, such as /home/runner/actions-runner/run.sh")),
+        _ => Err(format!(
+            "--run-sh {v:?}: give an absolute path in the image, such as /home/runner/actions-runner/run.sh"
+        )),
     }
 }
 

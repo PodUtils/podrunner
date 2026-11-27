@@ -109,7 +109,13 @@ impl InUnit {
             // No socket serves the unit: no container takes the copy.
             let _ = std::fs::remove_dir_all(&logs);
         })?;
-        let hook = podrunner_hook::unit::HookUnit::new(self.driver.clone(), id.clone(), policy(message, &super::workdir::work_folder(&self.run_sh)), None, logs);
+        let hook = podrunner_hook::unit::HookUnit::new(
+            self.driver.clone(),
+            id.clone(),
+            policy(message, &super::workdir::work_folder(&self.run_sh)),
+            None,
+            logs,
+        );
         let unit = std::sync::Arc::new(std::sync::Mutex::new(hook.with_ca(ca)));
         let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let (u, s): (std::sync::Arc<std::sync::Mutex<dyn Unit>>, _) = (unit.clone(), stop.clone());
@@ -153,7 +159,13 @@ mod tests {
         let driver =
             std::sync::Arc::new(podrunner_fake::FakeUnit::new(&dir, super::super::tests::capability(), "linux/amd64"));
         let id = podrunner_schema::UnitId::parse("u-1").unwrap();
-        let mut hook = podrunner_hook::unit::HookUnit::new(driver, id, super::policy(&job(), "/home/runner/work"), None, dir.join("logs"));
+        let mut hook = podrunner_hook::unit::HookUnit::new(
+            driver,
+            id,
+            super::policy(&job(), "/home/runner/work"),
+            None,
+            dir.join("logs"),
+        );
         hook.refusals.push(podrunner_schema::RefusalCode::ContainerOptionRefused);
         hook.driver_errors.push("no engine".into());
         let unit = std::sync::Mutex::new(hook);
