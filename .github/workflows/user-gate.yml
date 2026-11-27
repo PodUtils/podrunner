@@ -175,6 +175,13 @@ jobs:
           - lane: userns-off
             lab: sh scripts/lab/userns-off.sh -- sh scripts/lab/nonroot.sh --
             executors: podvm,runner-dir
+          # TMPDIR of 100 bytes (T-735): a socket of a unit under it is
+          # longer than the 107 bytes of sun_path. A check passes, or fails
+          # with a refusal of podrunner that names TMPDIR and its fix
+          # (an xfail).
+          - lane: long-tmp
+            lab: sh scripts/lab/long-tmp.sh -- sh scripts/lab/nonroot.sh --
+            executors: podvm,runner-dir
           # The namespace rung of podvm (T-564): no other lane gives it,
           # since the runners restrict user namespaces by AppArmor. The
           # units get the socket volume there, and from podvm 0.2.0-beta.37
@@ -347,7 +354,7 @@ jobs:
           python3 -I scripts/user-gate-summary.py --self-test || exit 1
           # The lanes of the matrix of the job lanes: a lane with no results
           # fails the gate.
-          python3 -I scripts/user-gate-summary.py --lanes plain,small-tmp,userns-off,userns-on,fsize-1g,cancel-container,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
+          python3 -I scripts/user-gate-summary.py --lanes plain,small-tmp,long-tmp,userns-off,userns-on,fsize-1g,cancel-container,inherited-fds,proxy-only,proxy-only-dns,bind-denied,serve-incus-kvm results > table.md
           rc=$?
           cat table.md | tee -a "$GITHUB_STEP_SUMMARY"
           exit "$rc"

@@ -119,6 +119,24 @@ def fsize_expect(soft: int, size: int) -> str:
     return "refuse" if need * 10 > soft * 11 else "either"
 
 
+
+# T-735: the longest TMPDIR in which the egress socket of a unit of `run`
+# fits sun_path (107 bytes): `a_socket_path_at_the_longest_tmpdir_fits`
+# in crates/podrunner-local/src/runkey.rs.
+TMP_ROOM = 60
+TMP_FIX = "set TMPDIR"
+
+
+def tmp_refusal(tmp: str, result: str, detail: str) -> tuple[str, str]:
+    """T-735: the result of a check under the TMPDIR `tmp`. Under a TMPDIR
+    longer than TMP_ROOM bytes, a failure whose message names its fix
+    (TMP_FIX) is a clear refusal of podrunner: an xfail. Each other result
+    stays: a failure with no fix is a defect of podrunner."""
+    n = len(os.fsencode(tmp))
+    if result == "fail" and n > TMP_ROOM and TMP_FIX in detail:
+        return "xfail", f"podrunner refuses the TMPDIR of {n} bytes and names the fix (T-735): {detail}"
+    return result, detail
+
 # T-509 (githome's G-38): a runner job of githome that uses the engine of
 # the unit, through `serve` on the microvm kind with the full image. The
 # fake GitHub of podcrates sends only `run:` steps (its job message has
@@ -422,6 +440,23 @@ def self_test() -> int:
     assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, 0, o, e, left))
     assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, t, o.replace("c2x", "c2"), e, left))
     assert wrong(lambda rc, t, o, e, left: cancel_problems(rc, t, o, e, none))
+    # T-735: a failure that names TMPDIR and its fix, under a TMPDIR past
+    # TMP_ROOM, is an xfail; a failure with no fix, a pass and a short
+    # TMPDIR keep their result.
+    long, short = "/" + "t" * 99, "/" + "t" * (TMP_ROOM - 1)
+    front = "podrunner run: exit 1: failure hello: the front of u-1: path too long; set TMPDIR to a shorter path"
+    bind = "podrunner run: exit 1: failure hold: the egress of u-1: bind: invalid input parameter"
+    cases = ((long, "fail", front, "xfail"), (long, "fail", bind, "fail"), (long, "pass", front, "pass"),
+             (short, "fail", front, "fail"), (short + "t", "fail", front, "xfail"), ("", "fail", front, "fail"),
+             (long, "skip", front, "skip"))
+    wrong = lambda fn: [c for c in cases if fn(*c[:3])[0] != c[3]]
+    assert not wrong(tmp_refusal), wrong(tmp_refusal)
+    assert all(c[2] in tmp_refusal(*c[:3])[1] for c in cases)
+    # Planted defects: no check of the fix, of the length or of the result.
+    assert wrong(lambda tmp, r, d: ("xfail", d) if r == "fail" and len(tmp) > TMP_ROOM else (r, d))
+    assert wrong(lambda tmp, r, d: ("xfail", d) if r == "fail" and TMP_FIX in d else (r, d))
+    assert wrong(lambda tmp, r, d: ("xfail", d) if len(tmp) > TMP_ROOM and TMP_FIX in d else (r, d))
+    assert wrong(lambda tmp, r, d: ("xfail", d) if r == "fail" and len(tmp) >= TMP_ROOM and TMP_FIX in d else (r, d))
     engine_self_test()
     print("user-gate: self-test passed")
     return 0
@@ -634,6 +669,7 @@ class Lane:
             result, detail = got if isinstance(got, tuple) else ("pass", got)
         except (GateError, OSError, subprocess.SubprocessError) as e:
             result, detail = "fail", str(e)
+        result, detail = tmp_refusal(os.environ.get("TMPDIR", ""), result, detail)
         print(f"{result} {name}: {detail}", flush=True)
         self.results.append((name, result, detail.replace("\t", " ").replace("\n", " ")))
         return result in ("pass", "xfail")
@@ -797,7 +833,9 @@ class Lane:
         if rc:
             if expect_ok:
                 self.show(f"{log}-doctor")
-            return False, f"podrunner doctor --run: exit {rc}"
+            # The FAIL lines name the cause and its fix (T-735).
+            fails = [line for line in (self.out / "logs" / f"{log}-doctor.out").read_text(errors="replace").splitlines() if line.startswith("FAIL")]
+            return False, f"podrunner doctor --run: exit {rc}" + "".join(f"; {line}" for line in fails[-3:])
         rc, out = self.run(["podrunner", "run", *args, "--log-dir", self.out / "logs" / log], env, cwd, log, timeout)
         lines = [line for line in out.splitlines() if line.strip()]
         ok = rc == 0 and any(line.startswith("ok ") for line in lines)

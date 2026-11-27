@@ -16,6 +16,7 @@ disposable host (a GitHub runner).
 | Script | The class | Root |
 | --- | --- | --- |
 | `small-tmp.sh` | `TMPDIR` on a tmpfs of 1 GiB (`LAB_TMP_SIZE`) | yes (the mount) |
+| `long-tmp.sh` | `TMPDIR` is a path of 100 bytes (`LAB_TMP_LEN`), so a socket of a unit under it is longer than `sun_path` (107 bytes); before `nonroot.sh` | no |
 | `userns-off.sh` | no user namespace (`user.max_user_namespaces=0`) | yes (the sysctl) |
 | `userns-on.sh` | a user with no root makes a user namespace with mounts (AppArmor's restriction off), so podvm takes its namespace rung | yes (the sysctl) |
 | `nonroot.sh` | a user with no root and no capability | yes (the user) |
